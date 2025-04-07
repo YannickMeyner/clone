@@ -1,0 +1,11 @@
+#cloud-config
+users:
+  - default
+  - name: ${ssh_user}
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMRvxlxev3e9sNKA91PajeJR8BrbJGgQ6rKi/JTBqj8b JL
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKk7Bg61uXvhyTy6sBJEAmAUUsa2RJ+DJ74lfaqtxHRW YM
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDFvBRBstcomasCqEuj3oJRb/vFCERfTtWKxRJCfi+La1jIxj9u+DehW1x8B5uckHjbkTYRmcR2XLTyMCXL5S4vm6xv04cNbGJQH3TWxG8F7dyaCWAISeWTgajzJWDPMVO0qx8vsLGu/buTzl4GfXhJ8pV8fKLdyicy1OgUxOTXcyf2nIrUL6vbge6nPG6LBDORc7UzjWA0+xCakJtN2BwmD+0qGzSKl9wU9T9MkeM2ZXnpB+mhq1/9xFc6o6pSAG0PW7uJv1R3S2G+cT+1RIrlQ5fTR8aCGn89VigfP3UBI74rcSBEOVhIAJB8GFj7R48gZ9PU4y+2YBwHUP8wwQb9 LL
+manage_etc_hosts: false

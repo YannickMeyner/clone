@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_BACKEND_URL=ws://backend:8080
+
+  backend:
+    build:
+      context: ./server/Tetrispp
+      dockerfile: ./Tetrispp/Dockerfile
+    expose:
+      - "8080"
