@@ -276,9 +276,9 @@ public class GameRoom
                         self = new
                         {
                             playerId = selfState.PlayerId,
-                            grid = populateCurrentBlockIntoGrid(SerializeGrid(selfState.Grid), selfState.CurrentBlock),
+                            grid = PopulateCurrentBlockIntoGrid(SerializeGrid(selfState.Grid), selfState.CurrentBlock),
                             currentBlock = selfState.CurrentBlock,
-                            nextBlock = transformBlockIntoGrid(selfState.NextBlock),
+                            nextBlock = TransformBlockIntoGrid(selfState.NextBlock),
                             score = selfState.Score,
                             linesCleared = selfState.LinesCleared,
                             isGameOver = selfState.IsGameOver
@@ -286,7 +286,7 @@ public class GameRoom
                         opponent = opponentState != null ? new
                         {
                             playerId = opponentState.PlayerId,
-                            grid = populateCurrentBlockIntoGrid(SerializeGrid(opponentState.Grid), opponentState.CurrentBlock),
+                            grid = PopulateCurrentBlockIntoGrid(SerializeGrid(opponentState.Grid), opponentState.CurrentBlock),
                             currentBlock = opponentState.CurrentBlock,
                             score = opponentState.Score,
                             linesCleared = opponentState.LinesCleared,
@@ -306,7 +306,7 @@ public class GameRoom
     /// <param name="grid"></param>
     /// <param name="currentBlock"></param>
     /// <returns></returns>
-    private List<List<int>> populateCurrentBlockIntoGrid(List<List<int>> grid, Tetromino currentBlock)
+    private List<List<int>> PopulateCurrentBlockIntoGrid(List<List<int>> grid, Tetromino currentBlock)
     {
         if (currentBlock == null)
             return grid;
@@ -343,7 +343,7 @@ public class GameRoom
     /// </summary>
     /// <param name="currentBlock"></param>
     /// <returns></returns>
-    private List<List<int>> transformBlockIntoGrid(Tetromino currentBlock) {
+    private List<List<int>> TransformBlockIntoGrid(Tetromino currentBlock) {
         if (currentBlock == null)
             return new List<List<int>>();
 

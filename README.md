@@ -21,6 +21,14 @@ The game ends when one player reaches the top of their board.
 
 xxx
 
+## Getting Started
+To run the game locally, clone the repo and then run: `docker compose up`.  
+During development run: `docker compose up --build --force-recreate` to rebuild and recreate the containers after changes to the code.
+
+This will build both container images and start them up.
+
+Open the frontend (http://localhost:3000) in two separate tabs and the game will run.
+
 ## Deploy
 [Create a new release on GitHub](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository#creating-a-release) to trigger the GitHub Actions workflow.
 
@@ -75,9 +83,43 @@ Der Server läuft standardmässig unter:
 - Spielertrennungen werden erkannt und behandelt.
 
 ### Architektur
-- `Program.cs`: Initialisiert den Webserver.
-- `Startup.cs`: Konfiguriert WebSockets und den `GameConnectionManager`.
-- `GameConnectionManager`: Verwaltet WebSocket-Verbindungen und Spiellogik.
-- `GameRoom.cs`: Organisiert Spieler in Spielräume.
-- `Player.cs`: Repräsentiert einen Spieler.
-- `GameAction.cs`: Modelliert Spieleraktionen.
+**Basis**
+- `Program`: Initialisiert den Webserver.
+- `Startup`: Konfiguriert WebSockets und den `GameConnectionManager`.
+
+**Verbindungverwaltung**
+- `GameConnectionManager`
+  - zentraler Websocket-Verbindungmanager
+  - verarbeitet Spielbeitritte und Matchmaking (Rooms)
+  - leitet Nachrichten an die entsprechenden Rooms weiter
+  - verwaltet Spielertrennung
+
+**Rooms und Spieler**
+- `GameRoom`
+  - repräsentiert eine "Spielsitzung" zwischen 2 Spielern
+  - verwaltet den Spielzyklus (Start, Ende)
+  - sendet Änderungen des Spielzustands
+  - verarbeitet Spieleraktionen (Move, Rotate, ...)
+  - sendet vollständige Linien an das Spioelfeld des Gegners
+- `Player`
+  - repräsentiert einen verbundenen Spieler
+  - speichert ID und WebSocket-Verbindung
+- `PlayerState`
+  - enthält den aktuellen Zustand des Spiels eines Spielers
+  - verfolgt Spiel-Grid, aktuelle/nächste Blöcke, punktzahl, ...
+  - speichert vollständige Linien für die Übertragung zum Gegner
+
+**Spiellogik**
+- `TetrisGameService`
+  - verarbeitet Blockerstellung, Bewegung und Rotation
+  - Blockkollisionserkennung- und platzierung
+- `GameAction`
+  - enum für die Actions (Move, Rotate, Drop, ...)
+  - Standard für Nachrichtenaustausch zwischen Client und Server
+
+**Tetromino-Verwaltung**
+- `Tetromino`
+  - repräsentiert einen Tetris-Block (I, O, T, S, Z, J, L)
+  - speichert Position und Rotationszustand
+- `TetrominoShapes`
+  - definiert alle Formen und Rotationsmuster

@@ -5,9 +5,12 @@ import styles from "./board.module.css";
 import useWebSocket from "react-use-websocket";
 import GameMessage from "../models/GameMessage";
 import { Pixel } from "./Pixel";
+import { useEnv } from "../env/provider";
 
 export default function Board() {
-    const WS_URL = process.env.NEXT_PUBLIC_BACKEND_URL || null; //"ws://localhost:5001/";
+    const env = useEnv();
+    //@ts-expect-error I'm bad at typescript
+    const WS_URL = env.BACKEND_URL;
     const gridWidth = 10;
     const gridHeight = 20;
 

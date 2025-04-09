@@ -10,11 +10,11 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_BACKEND_URL=ws://backend:8080
+      - BACKEND_URL=ws://localhost:8080
 
   backend:
     build:
       context: ./server/Tetrispp
       dockerfile: ./Tetrispp/Dockerfile
-    expose:
-      - "8080"
+    ports:
+      - "8080:8080"

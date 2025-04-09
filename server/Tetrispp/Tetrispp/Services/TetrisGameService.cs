@@ -195,7 +195,6 @@ public class TetrisGameService
             }
         }
 
-        // Rest der Methode bleibt gleich
         int linesCleared = ClearLines(state);
         state.LinesCleared += linesCleared;
         state.Score += CalculateScore(linesCleared);
@@ -220,6 +219,7 @@ public class TetrisGameService
         for (int y = 0; y < 20; y++)
         {
             bool isLineFull = true;
+            bool isTransferredLine = false;
 
             // Prüfen, ob die Reihe voll ist
             for (int x = 0; x < 10; x++)
@@ -229,15 +229,21 @@ public class TetrisGameService
                     isLineFull = false;
                     break;
                 }
+                // Prüfen, ob es sich um eine übertragene Zeile handelt (negative Werte)
+                else if (state.Grid[x, y] < 0)
+                {
+                    isTransferredLine = true;
+                }
             }
 
-            if (isLineFull)
+            // Nur vollständige Zeilen berücksichtigen, die NICHT vom Gegner übertragen wurden (also positive)
+            if (isLineFull && !isTransferredLine)
             {
                 // Speichere die vollständige Zeile für den Gegner
                 int[] completedLine = new int[10];
                 for (int x = 0; x < 10; x++)
                 {
-                    completedLine[x] = state.Grid[x, y];
+                    completedLine[x] = Math.Abs(state.Grid[x, y]);
                 }
                 completedLines.Add(completedLine);
 
@@ -289,9 +295,10 @@ public class TetrisGameService
             }
 
             // Füge die vollständige Zeile ganz unten ein (Index 19)
+            // Als negative Werte markieren, um zu kennzeichnen, dass die Zeile vom Gegner übertragen wurde
             for (int x = 0; x < 10; x++)
             {
-                state.Grid[x, 19] = line[x];
+                state.Grid[x, 19] = -Math.Abs(line[x]);
             }
 
             // Wenn der aktuelle Block mit der neuen Zeile kollidiert, bewege ihn nach oben
