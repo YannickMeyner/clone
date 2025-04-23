@@ -2,8 +2,14 @@
 
 namespace Tetrispp.Models;
 
-public class Player(WebSocket socket)
+public class Player
 {
-    public WebSocket Socket { get; } = socket;
-    public string PlayerId { get; } = Guid.NewGuid().ToString();
+    public WebSocket Socket { get; }
+    public int UserId { get; }
+
+    public Player(WebSocket socket, int userId)
+    {
+        Socket = socket;
+        UserId = userId;
+    }
 }

@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Net.WebSockets;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using Tetrispp.Models;
@@ -11,14 +12,33 @@ public class GameConnectionManager
     // Thread-safe
     private readonly ConcurrentDictionary<string, GameRoom> _rooms = new();
     private readonly ConcurrentDictionary<WebSocket, string> _connections = new();
+    private readonly IServiceProvider _serviceProvider;
+
+    public GameConnectionManager(IServiceProvider serviceProvider)
+    {
+        _serviceProvider = serviceProvider;
+    }
 
     /// <summary>
     /// Bei einer neuen Websocket-Connection wird ein Player initialisiert und dieser einem passenden Raum zugewiesen
     /// </summary>
-    public async Task HandlePlayer(WebSocket socket)
+    public async Task HandlePlayer(WebSocket socket, string token)
     {
         try
         {
+            using var scope = _serviceProvider.CreateScope();
+            var authService = scope.ServiceProvider.GetRequiredService<AuthService>();
+
+            var userClaims = authService.ValidateToken(token);
+            if (userClaims == null)
+            {
+                await socket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Invalid token", CancellationToken.None);
+                return;
+            }
+
+            // extract user information von den claims
+            int userId = int.Parse(userClaims.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+
             var buffer = new byte[1024 * 4];
             WebSocketReceiveResult result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
 
@@ -31,7 +51,7 @@ public class GameConnectionManager
                 if (action?.ActionType == ActionType.Join)
                 {
                     var room = FindAvailableRoom();
-                    var player = new Player(socket);
+                    var player = new Player(socket, userId);
                     room.AddPlayer(player);
                     _connections.TryAdd(socket, room.RoomId);
 
@@ -40,7 +60,7 @@ public class GameConnectionManager
                     {
                         action = ActionType.Init,
                         roomId = room.RoomId,
-                        playerId = player.PlayerId
+                        userId = player.UserId
                     }, new JsonSerializerOptions
                     {
                         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -124,7 +144,7 @@ public class GameConnectionManager
         var availableRoom = _rooms.Values.FirstOrDefault(room => !room.IsFull);
         if (availableRoom == null)
         {
-            var newRoom = new GameRoom();
+            var newRoom = new GameRoom(_serviceProvider);
             _rooms.TryAdd(newRoom.RoomId, newRoom);
             return newRoom;
         }

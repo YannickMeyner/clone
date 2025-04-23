@@ -6,6 +6,6 @@ export default interface Player {
     grid: number[][];
     isGameOver: boolean;
     linesCleared: number;
-    playerId: string;
+    userId: string;
     score: number;
 }

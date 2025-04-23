@@ -10,6 +10,36 @@
     gap: 12px;
 }
 
+.button {
+    padding: 8px 12px;
+    border: 1px solid rgb(243, 245, 246);
+    border-radius: 6px;
+    background: rgb(2, 181, 246);
+    font-weight: bold;
+    font-size: 14px;
+    min-width: 32px;
+    text-align: center;
+    user-select: none;
+    color: black
+}
+
+.button:hover {
+    background: rgb(113, 198, 229);
+    cursor: pointer;
+}
+
+.button:active {
+    background: rgb(180, 222, 237);
+}
+
+.infoContainer {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+}
+
 .separator {
     height: 1rem;
     background-color: #ca2828;
@@ -18,12 +48,21 @@
 
 .boardContainer {
     width: calc((20px * 20) + 1px);
+    outline: 2px solid rgb(2, 181, 246); 
+    box-shadow: 0 0 10px rgba(2, 181, 246, 0.5);
     
 }
 
 .boardContainer:focus {
     outline: 2px solid rgb(143, 250, 4); 
     box-shadow: 0 0 10px rgba(143, 250, 4, 0.5);
+}
+
+.nextblockContainer {
+    display: grid;
+    gap: 0px;
+    padding-bottom: 20px;
+    height: 100px;
 }
 
 .overlay {
@@ -36,6 +75,15 @@
     justify-content: center;
     align-items: center;
     flex-direction: column;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: #000000cc;
     z-index: 1;
+}
+
+.keyboardLabelContainer {
+    display: flex;
+    gap: 4px;
+    justify-content: flex-start;
+    align-items: center;
+    margin-top: 8px;
+    flex-wrap: wrap;
 }

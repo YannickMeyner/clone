@@ -1,0 +1,44 @@
+.container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    font-family: sans-serif;
+}
+
+.key {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #f7f7f7;
+    box-shadow: 0 2px 0 #ccc;
+    font-weight: bold;
+    font-size: 14px;
+    min-width: 32px;
+    text-align: center;
+    user-select: none;
+    color: black
+}
+
+.key:hover {
+    background: #eaeaea;
+    cursor: pointer;
+}
+
+.key:active {
+    box-shadow: none;
+    transform: translateY(2px);
+}
+
+.description {
+    font-size: 14px;
+    color: #ededed;
+    margin: 0;
+    text-align: center;
+    max-width: 120px;
+    line-height: 1.4;
+    font-style: italic;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

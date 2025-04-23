@@ -51,6 +51,7 @@ public class Startup
         services.AddAuthorization();
         services.AddControllers();
         services.AddScoped<AuthService>();
+        services.AddScoped<ScoreService>();
     }
 
     public void Configure(IApplicationBuilder app)
@@ -71,9 +72,19 @@ public class Startup
         {
             if (context.WebSockets.IsWebSocketRequest)
             {
+                // extract token vom query string (der Token wird im Client bei der ws_url angehängt)
+                string token = context.Request.Query["token"]!;
+
+                if (string.IsNullOrEmpty(token))
+                {
+                    context.Response.StatusCode = 401;
+                    await context.Response.WriteAsync("Authentication token required");
+                    return;
+                }
+
                 var webSocket = await context.WebSockets.AcceptWebSocketAsync();
                 var connectionManager = app.ApplicationServices.GetService<GameConnectionManager>();
-                await connectionManager!.HandlePlayer(webSocket);
+                await connectionManager!.HandlePlayer(webSocket, token);
             } else
             {
                 await next();

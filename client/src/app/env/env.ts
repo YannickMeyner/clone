@@ -1,5 +1,5 @@
 "use server";
 
 export const getEnv = async () => ({
-    BACKEND_URL: process.env.BACKEND_URL,
+    BACKEND_URL: process.env.BACKEND_URL ?? 'ws://localhost:5001',
 });

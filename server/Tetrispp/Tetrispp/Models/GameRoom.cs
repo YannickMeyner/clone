@@ -9,6 +9,7 @@ namespace Tetrispp.Models;
 public class GameRoom
 {
     private readonly TetrisGameService _gameService = new();
+    private readonly IServiceProvider _serviceProvider;
     private Timer? _gameLoop;
     private readonly object _lockObject = new();
     private bool _gameStarted = false;
@@ -21,6 +22,11 @@ public class GameRoom
 
     // 1 Sekunde zwischen den Spielupdates
     private readonly int _gameTickIntervalMs = 1000;
+
+    public GameRoom(IServiceProvider serviceProvider)
+    {
+        _serviceProvider = serviceProvider;
+    }
 
     /// <summary>
     /// Startet das Spiel
@@ -50,9 +56,9 @@ public class GameRoom
     }
 
     /// <summary>
-    /// Beendet das Spiel und sendet eine Game-Over-Nachricht
+    /// Beendet das Spiel, sendet eine Game-Over-Nachricht und speichert die Scores in der DB
     /// </summary>
-    private async Task EndGame(string winnerId)
+    private async Task EndGame(int winnerId)
     {
         StopGame();
 
@@ -61,6 +67,27 @@ public class GameRoom
             action = "GAME_OVER",
             winnerId = winnerId
         });
+
+        using var scope = _serviceProvider.CreateScope();
+        var scoreService = scope.ServiceProvider.GetRequiredService<ScoreService>();
+
+        var winnerEntry = GameState.Players.FirstOrDefault(p => p.Key == winnerId);
+        var loserEntry = GameState.Players.FirstOrDefault(p => p.Key != winnerId);
+
+        if (winnerEntry.Value == null || loserEntry.Value == null)
+            return;
+
+        await scoreService.SavePlayerScoreAsync(
+            winnerEntry.Key,
+            RoomId,
+            winnerEntry.Value.LinesCleared,
+            true);
+
+        await scoreService.SavePlayerScoreAsync(
+            loserEntry.Key,
+            RoomId,
+            loserEntry.Value.LinesCleared,
+            false);
     }
 
     /// <summary>
@@ -85,8 +112,8 @@ public class GameRoom
         if (!IsFull)
         {
             Players.Add(player);
-            var playerState = _gameService.InitializePlayerState(player.PlayerId);
-            GameState.Players[player.PlayerId] = playerState;
+            var playerState = _gameService.InitializePlayerState(player.UserId);
+            GameState.Players[player.UserId] = playerState;
 
             // Wenn zwei Spieler da sind, das Spiel starten
             if (Players.Count == 2 && !_gameStarted)
@@ -105,7 +132,7 @@ public class GameRoom
         if (player != null)
         {
             Players.Remove(player);
-            GameState.Players.Remove(player.PlayerId);
+            GameState.Players.Remove(player.UserId);
 
             // Spiel stoppen, wenn ein Spieler geht
             StopGame();
@@ -116,7 +143,7 @@ public class GameRoom
                 await SendMessage(remainingPlayer.Socket, new
                 {
                     action = "PLAYER_DISCONNECTED",
-                    playerId = player.PlayerId
+                    userId = player.UserId
                 });
             }
         }
@@ -134,7 +161,7 @@ public class GameRoom
         if (GameState.Players.Values.Any(p => p.IsGameOver))
         {
             // Spiel beenden und Gewinner ermitteln
-            string? winnerId = GameState.Players.FirstOrDefault(p => !p.Value.IsGameOver).Key;
+            int winnerId = GameState.Players.FirstOrDefault(p => !p.Value.IsGameOver).Key;
             await EndGame(winnerId);
             return;
         }
@@ -188,7 +215,7 @@ public class GameRoom
     /// </summary>
     public async Task HandleGameAction(GameAction action, Player player)
     {
-        if (!GameState.IsGameActive || !GameState.Players.TryGetValue(player.PlayerId, out var playerState))
+        if (!GameState.IsGameActive || !GameState.Players.TryGetValue(player.UserId, out var playerState))
             return;
 
         if (playerState.IsGameOver)
@@ -199,18 +226,18 @@ public class GameRoom
         switch (action.ActionType)
         {
             case ActionType.Move:
-                Console.WriteLine($"Player {player.PlayerId} moved block {action.Direction}");
+                Console.WriteLine($"Player {player.UserId} moved block {action.Direction}");
                 if (action.Direction != null)
                 {
                     stateChanged = _gameService.MoveBlock(playerState, action.Direction);
                 }
                 break;
             case ActionType.Rotate:
-                Console.WriteLine($"Player {player.PlayerId} rotated block");
+                Console.WriteLine($"Player {player.UserId} rotated block");
                 stateChanged = _gameService.RotateBlock(playerState);
                 break;
             case ActionType.Drop:
-                Console.WriteLine($"Player {player.PlayerId} dropped block");
+                Console.WriteLine($"Player {player.UserId} dropped block");
                 _gameService.DropBlock(playerState);
                 stateChanged = true;
                 break;
@@ -240,7 +267,7 @@ public class GameRoom
         // Wenn sich der Spielstatus geändert hat, an alle Spieler darüber informieren
         if (stateChanged)
         {
-            Console.WriteLine($"Player {player.PlayerId} changed game state");
+            Console.WriteLine($"Player {player.UserId} changed game state");
             await BroadcastGameState();
         }
     }
@@ -259,10 +286,10 @@ public class GameRoom
         foreach (var player in Players)
         {
             // Spielstatus für diesen Spieler zusammenstellen
-            var selfState = GameState.Players[player.PlayerId];
+            var selfState = GameState.Players[player.UserId];
 
             // Gegner finden
-            var opponent = GameState.Players.FirstOrDefault(p => p.Key != player.PlayerId);
+            var opponent = GameState.Players.FirstOrDefault(p => p.Key != player.UserId);
             PlayerState? opponentState = opponent.Value;
 
             // Zusammengestellten Spielstatus senden
@@ -275,7 +302,7 @@ public class GameRoom
                     {
                         self = new
                         {
-                            playerId = selfState.PlayerId,
+                            userId = selfState.UserId,
                             grid = PopulateCurrentBlockIntoGrid(SerializeGrid(selfState.Grid), selfState.CurrentBlock),
                             currentBlock = selfState.CurrentBlock,
                             nextBlock = TransformBlockIntoGrid(selfState.NextBlock),
@@ -285,7 +312,7 @@ public class GameRoom
                         },
                         opponent = opponentState != null ? new
                         {
-                            playerId = opponentState.PlayerId,
+                            userId = opponentState.UserId,
                             grid = PopulateCurrentBlockIntoGrid(SerializeGrid(opponentState.Grid), opponentState.CurrentBlock),
                             currentBlock = opponentState.CurrentBlock,
                             score = opponentState.Score,

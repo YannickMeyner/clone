@@ -6,11 +6,16 @@ import useWebSocket from "react-use-websocket";
 import GameMessage from "../models/GameMessage";
 import { Pixel } from "./Pixel";
 import { useEnv } from "../env/provider";
+import KeyboardLabel from "./keyboardLabel";
+import { useAuth } from "../context/auth-context";
 
 export default function Board() {
     const env = useEnv();
-    //@ts-expect-error I'm bad at typescript
-    const WS_URL = env.BACKEND_URL;
+    const { token } = useAuth();
+    //@ts-expect-error FIXME :)
+    const WS_BASE_URL = env.BACKEND_URL;
+    // token anhängen, damit die UserId extracted werden kann im Server
+    const WS_URL = `${WS_BASE_URL}?token=${token}`;
     const gridWidth = 10;
     const gridHeight = 20;
 
@@ -22,19 +27,20 @@ export default function Board() {
         onError: (event) => console.log("Error", event),
     }
     );
-
-    const [gameLogs, setGameLogs] = useState<string>("");
     const [nextBlockPixels, setNextBlockPixels] = useState<Pixel[]>([]);
     const [nextBlockPixelWidth, setNextBlockPixelsWidth] = useState<number>(1);
+    const [playerId, setPlayerId] = useState<string>("");
+    const [winner, setWinner] = useState<'Running' | 'You win' | 'Opponent win'>('Running');
+    const [gameState, setGameState] = useState<'WAITING' | 'READY' | 'PLAYING' | 'GAME_OVER'>('WAITING');
 
     useEffect(() => {
         if (lastJsonMessage !== null) {
             console.debug("Received message", lastJsonMessage);
             const gameMessage: GameMessage = lastJsonMessage as GameMessage;
-            setGameLogs(prevLogs => JSON.stringify(gameMessage.action) + "\n" + prevLogs);
 
             console.log("> Message action:", gameMessage);
             if (gameMessage.action === "UPDATE" && gameMessage.gameState) {
+                setGameState('PLAYING');
 
                 console.log(" > Game state:", gameMessage.gameState);
 
@@ -45,6 +51,12 @@ export default function Board() {
 
                 setSelfPixels(updatePixels(gameMessage.gameState.players.self.grid));
                 setOpponentPixels(updatePixels(gameMessage.gameState.players.opponent.grid));
+            } else if (gameMessage.action === "GAME_OVER") {
+                setGameState('GAME_OVER');
+                setWinner(gameMessage.winnerId === playerId ? 'You win' : 'Opponent win');
+            } else if (typeof gameMessage.action === 'number') {
+                setGameState('READY');
+                setPlayerId(gameMessage.playerId ?? '-1');
             }
 
         }
@@ -122,6 +134,16 @@ export default function Board() {
         new Pixel(10, {}),
     ]);
 
+    function resetGame() {
+        setGameState('WAITING');
+        setWinner('Running');
+        setSelfPixels([]);
+        setOpponentPixels([]);
+        setNextBlockPixels([]);
+        setNextBlockPixelsWidth(1);
+        setPlayerId("");
+    }
+
     function keyDown($event: React.KeyboardEvent) {
         if ($event.key === "ArrowRight") {
             console.log("Right");
@@ -156,25 +178,33 @@ export default function Board() {
         } else if ($event.key === "Escape") {
             console.log("Escape");
             setRunning(prevRunning => !prevRunning);
+        } else if ($event.key === "R" || $event.key === "r") {
+            console.log("[R] Reset");
+            resetGame();
         }
     }
 
 
     return (
         <>
-            <h3>Gamelogs</h3>
-            <div style={{ whiteSpace: "pre-wrap", height: "4rem", overflowY: "scroll" }}>{gameLogs}</div>
-            <button onClick={sendInitMessage}>Send Init Message</button>
-
+            <div className={styles.infoContainer}>
+                <p>Gamestate: {gameState}</p>
+                <button
+                    disabled={gameState === 'READY' || gameState === 'PLAYING'}
+                    onClick={sendInitMessage}
+                    className={styles.button}
+                >Ready</button>
+            </div>
             <div
                 onKeyDown={keyDown} tabIndex={0}
                 className={styles.boardContainer}
             >
                 {
-                    !running && (
+                    gameState === 'GAME_OVER' && (
                         <div className={styles.overlay}>
-                            <h1>Game paused</h1>
-                            <p>Press <i>space</i> to resume</p>
+                            <h1>Game over</h1>
+                            <p style={{ color: winner === 'You win' ? '#d3fc19' : 'RED' }}>{winner}</p>
+                            <KeyboardLabel label="R" description="Resets the Game" />
                         </div>
                     )
                 }
@@ -204,13 +234,12 @@ export default function Board() {
                     }
 
                     <div>
-                        Nextblock:
+                        <p>Nextblock:</p>
                         <div
+                            className={styles.nextblockContainer}
                             style={{
-                                display: "grid",
                                 gridTemplateColumns: `repeat(${nextBlockPixelWidth}, 20px)`,
                                 gridTemplateRows: `repeat(${nextBlockPixelWidth}, 20px)`,
-                                gap: "0px",
                             }}
                         >
                             {
@@ -220,7 +249,14 @@ export default function Board() {
                             }
 
                         </div>
-
+                        <div className={styles.keyboardLabelContainer}>
+                            <KeyboardLabel label="Up" description="Rotate the Block" />
+                            <KeyboardLabel label="Down" description="Move down" />
+                            <KeyboardLabel label="Left" description="Move left" />
+                            <KeyboardLabel label="Right" description="Move right" />
+                            <KeyboardLabel label="Space" description="Drop the Block" />
+                            <KeyboardLabel label="R" description="Resets the Game" />
+                        </div>
                     </div>
                 </div>
                 <div

@@ -7,7 +7,8 @@ public class SqlContext : DbContext
 {
     public SqlContext(DbContextOptions<SqlContext> options) : base(options) { }
 
-    public DbSet<User> Users { get; set; } = null!;
+    public DbSet<User> Users { get; set; }
+    public DbSet<PlayerScore> PlayerScores { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -15,6 +16,12 @@ public class SqlContext : DbContext
 
         modelBuilder.Entity<User>()
             .HasKey(u => u.Id);
+
+        modelBuilder.Entity<PlayerScore>()
+            .HasOne(p => p.User)
+            .WithMany()
+            .HasForeignKey(p => p.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
 

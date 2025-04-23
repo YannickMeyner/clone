@@ -23,11 +23,11 @@ public class TetrisGameService
     /// CurrentBlock = repräsentiert den aktuell fallenden Block, der "aktive" Block
     /// NextBlock = nächste Tetromino, der ins Spiel kommen wird. Kann z.B. als Vorschau angezeigt werden
     /// </summary>
-    public PlayerState InitializePlayerState(string playerId)
+    public PlayerState InitializePlayerState(int userId)
     {
         var playerState = new PlayerState
         {
-            PlayerId = playerId,
+            UserId = userId,
             CurrentBlock = CreateNewBlock(),
             NextBlock = CreateNewBlock()
         };
