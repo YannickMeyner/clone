@@ -21,7 +21,7 @@ export default function Board() {
 
     const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(
         WS_URL, {
-        shouldReconnect: () => false, // TODO: change later to true
+        shouldReconnect: () => true,
         onOpen: () => console.log("Connected to server"),
         onClose: () => console.log("Disconnected from server"),
         onError: (event) => console.log("Error", event),

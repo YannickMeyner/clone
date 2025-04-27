@@ -88,6 +88,23 @@ public class GameRoom
             RoomId,
             loserEntry.Value.LinesCleared,
             false);
+
+        // Spiel vorbei -> WebSocket-Verbindungen schliessen
+        await Task.Delay(1000);
+        foreach (var player in Players.ToList())
+        {
+            try
+            {
+                await player.Socket.CloseAsync(
+                    WebSocketCloseStatus.NormalClosure,
+                    "Game ended",
+                    CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error closing WebSocket: {ex.Message}");
+            }
+        }
     }
 
     /// <summary>
