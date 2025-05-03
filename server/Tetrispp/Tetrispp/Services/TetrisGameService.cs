@@ -82,19 +82,83 @@ public class TetrisGameService
         if (state.CurrentBlock == null || state.IsGameOver)
             return false;
 
-        // jeder Block hat 4 mögliche Rotationszustände
-        // wenn aktuelle Rotation 0 ist dann: (0 + 1) % 4 = 1 -> nächste Rotation ist 1
-        // wenn aktuelle Rotation 3 ist dann; (3 + 1) % 4 = 0 -> zurück zur Rotation 0
-        int newRotation = (state.CurrentBlock.Rotation + 1) % 4;
+        var blockType = state.CurrentBlock.Type;
+        int originalRotation = state.CurrentBlock.Rotation;
+        int newRotation = (originalRotation + 1) % 4;
 
-        // Rotation überprüfen
-        if (IsValidPosition(state, state.CurrentBlock.Position, state.CurrentBlock.Type, newRotation))
+        // O-Tetromino hat keine Wall-Kicks -> 2x2
+        if (blockType == TetrominoType.O)
         {
-            state.CurrentBlock.Rotation = newRotation;
-            return true; // Rotation erfolgreich
+            if (IsValidPosition(state, state.CurrentBlock.Position, blockType, newRotation))
+            {
+                state.CurrentBlock.Rotation = newRotation;
+                return true;
+            }
+            return false;
         }
 
-        return false; // Rotation fehlgeschlagen
+        // Holt alle Wall-Kick-Offsets für die neue Rotation
+        var wallKicks = GetWallKicks(blockType, originalRotation, newRotation);
+
+        // Offset: Versuch, den Block leicht zu verschieben, um eine Kollision zu vermeiden
+        // Ablauf: der Block wird nacheinander in allen 5 Positionen getestet; die erste gültige (kollisionfreie) Position wird verwendet
+        foreach (var offset in wallKicks)
+        {
+            var newPosition = new Position(
+                state.CurrentBlock.Position.X + offset.X,
+                state.CurrentBlock.Position.Y + offset.Y
+            );
+
+            if (IsValidPosition(state, newPosition, blockType, newRotation))
+            {
+                state.CurrentBlock.Rotation = newRotation;
+                state.CurrentBlock.Position = newPosition;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    //SRS-Regeln: https://tetris.wiki/Super_Rotation_System#Wall_Kicks
+    private List<Position> GetWallKicks(TetrominoType type, int fromRotation, int toRotation)
+    {
+        // speichert die aktuelle Rotationsänderung als Tupel //z.B.: I-Tetromino wird von 0° auf 90° rotiert: fromRotation=0, toRotation=1
+        var transition = (fromRotation, toRotation);
+
+        // I-Tetromino hat eigene Wall-Kicks laut SRS-Regeln, die sich von anderen Tetromino-Typen unterscheiden
+        if (type == TetrominoType.I)
+        {
+            // Wall-Kicks für I (SRS)
+            // Struktur: <transition, Liste von Position-Objekten>
+            // definiert die Wall-Kick-Offsets für alle 4 möglichen Rotationstransitionen
+            var iKicks = new Dictionary<(int, int), List<Position>>()
+            {
+                // 1: Position unverändert;  2: 2 nach links;  3: 1 nach rechts;  4: 2 nach links und 1 nach unten;  5: 1 nach rechts und 2 hoch
+                [(0, 1)] = new List<Position> { new(0, 0), new(-2, 0), new(1, 0), new(-2, -1), new(1, 2) }, //   0° ->  90°
+                [(1, 2)] = new List<Position> { new(0, 0), new(-1, 0), new(2, 0), new(-1, 2), new(2, -1) }, //  90° -> 180°
+                [(2, 3)] = new List<Position> { new(0, 0), new(2, 0), new(-1, 0), new(2, 1), new(-1, -2) }, // 180° -> 270°
+                [(3, 0)] = new List<Position> { new(0, 0), new(1, 0), new(-2, 0), new(1, -2), new(-2, 1) }  // 270° ->   0°
+            };
+
+            // gibt die zur `transition` passenden Offsets zurück
+            return iKicks.TryGetValue(transition, out var kicks) ? kicks : new List<Position>();
+        }
+        else if (type == TetrominoType.J || type == TetrominoType.L || type == TetrominoType.S || type == TetrominoType.T || type == TetrominoType.Z)
+        {
+            // Wall-Kicks für J, L, S, T und Z (SRS)
+            var jlstzKicks = new Dictionary<(int, int), List<Position>>()
+            {
+                [(0, 1)] = new List<Position> { new(0, 0), new(-1, 0), new(-1, 1), new(0, -2), new(-1, -2) }, //   0° ->  90°
+                [(1, 2)] = new List<Position> { new(0, 0), new(1, 0), new(1, -1), new(0, 2), new(1, 2) },     //  90° -> 180°
+                [(2, 3)] = new List<Position> { new(0, 0), new(1, 0), new(1, 1), new(0, -2), new(1, -2) },    // 180° -> 270°
+                [(3, 0)] = new List<Position> { new(0, 0), new(-1, 0), new(-1, -1), new(0, 2), new(-1, 2) }   // 270° ->   0°
+            };
+            return jlstzKicks.TryGetValue(transition, out var kicks) ? kicks : new List<Position>();
+        }
+
+        // Keine Wall-Kicks für andere Tetrominos (O)
+        return new List<Position>();
     }
 
     /// <summary>
