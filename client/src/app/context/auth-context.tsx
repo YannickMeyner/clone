@@ -28,6 +28,7 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:5001';
   const [state, setState] = useState<AuthState>(defaultAuthState);
 
   useEffect(() => {
@@ -64,7 +65,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setState(prev => ({ ...prev, loading: true, error: null }));
     
     try {
-      const response = await login(credentials);
+      const response = await login(apiBaseUrl, credentials);
       
       if (response.success && response.token && response.userId && response.username) {
         const user: User = {
@@ -98,7 +99,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setState(prev => ({ ...prev, loading: true, error: null }));
     
     try {
-      const response = await register(credentials);
+      const response = await register(apiBaseUrl, credentials);
       
       if (response.success && response.token && response.userId && response.username) {
         const user: User = {

@@ -1,21 +1,28 @@
 ﻿using Tetrispp.Models;
+using Tetrispp.Tetris.Randomizer;
 
 namespace Tetrispp.Services;
 
 public class TetrisGameService
 {
+    // maximale Zeit in ms wie lange ein Tetromino auf dem Boden "aktiv" bleibt bevor es endgültig platziert wird
+    private const int MAX_FLOOR_TIME_MS = 500;
+    // maximale Anzahl von Moves, die ein Spieler mit dem Tetromino machen kann solange die Zeit noch nicht abgleuafen ist
+    private const int MAX_FLOOR_MOVES = 2;
+
+    private readonly IRandomizer Randomizer;
+
+    public TetrisGameService(IRandomizer randomizer)
+    {
+        Randomizer = randomizer;
+    }
+
     /// <summary>
     /// Erstellt einen neuen Block für den Spieler
     /// </summary>
     public Tetromino CreateNewBlock()
     {
-        TetrominoType blockType = TetrominoShapes.GetRandomType();
-        return new Tetromino
-        {
-            Type = blockType,
-            Rotation = 0,
-            Position = new Position(3, 0) // Startposition in der Mitte oben
-        };
+        return Randomizer.GetNext();
     }
 
     /// <summary>
@@ -54,24 +61,81 @@ public class TetrisGameService
         {
             state.CurrentBlock.Position = newPosition;
 
-            // Wenn nach unten bewegt wurde, überprüfen, ob der Block auf etwas stösst
-            if (direction == "DOWN" && !CanMoveDown(state))
+            // wenn horizontal bewegt wird während der Block am Boden ist, wird der MAX_FLOOR_MOVES-Counter erhöht
+            if (direction == "LEFT" || direction == "RIGHT")
             {
-                PlaceBlock(state);
-                return true; // Block wurde platziert
+                if (state.CurrentBlock.IsOnFloor)
+                {
+                    state.CurrentBlock.MovesSinceFloorTouch++;
+
+                    // prüft, ob die maximale Anzahl an Floor-Moves überschritten wurde
+                    if (state.CurrentBlock.MovesSinceFloorTouch >= MAX_FLOOR_MOVES)
+                    {
+                        PlaceBlock(state);
+                        return true;
+                    }
+                }
+            }
+
+            // Wenn nach unten bewegt wurde, überprüfen, ob der Block auf etwas stösst
+            if (direction == "DOWN")
+            {
+                // Setze den IsOnFloor-Status zurück wenn nach unten bewegt wird
+                state.CurrentBlock.IsOnFloor = false;
+
+                // Prüft, ob der Block weiter nach unten bewegt werden kann
+                if (!CanMoveDown(state))
+                {
+                    // Markiert als am Boden und speichert die Zeit
+                    state.CurrentBlock.IsOnFloor = true;
+                    state.CurrentBlock.FloorTouchTime = DateTime.Now;
+                    state.CurrentBlock.MovesSinceFloorTouch = 0;
+                }
             }
 
             return true; // Bewegung erfolgreich
         }
 
-        // Wenn nach unten bewegt wurde und die Position ungültig ist, wird der Block platziert
+        // Wenn nach unten bewegt wurde und die Position ungültig ist,
+        // Prüfe, ob der Block gelocked werden soll oder der Floor-Kick-Timer gestartet werden soll
         if (direction == "DOWN")
         {
-            PlaceBlock(state);
-            return true; // Block wurde platziert
+            if (!state.CurrentBlock.IsOnFloor)
+            {
+                // Erstes Auftreffen auf den Boden
+                state.CurrentBlock.IsOnFloor = true;
+                state.CurrentBlock.FloorTouchTime = DateTime.Now;
+                state.CurrentBlock.MovesSinceFloorTouch = 0;
+                return true;
+            } else if (ShouldLockBlock(state))
+            {
+                // Block wird endgültig platziert
+                PlaceBlock(state);
+                return true;
+            }
         }
 
         return false; // Bewegung fehlgeschlagen
+    }
+
+    /// <summary>
+    /// Bestimmt, ob ein Block basierend auf der FloorTouchTime und MovesSinceFloorTouch gelocked/endgültig platziert werden soll
+    /// </summary>
+    private bool ShouldLockBlock(PlayerState state)
+    {
+        if (!state.CurrentBlock.IsOnFloor)
+            return false;
+
+        // Prüft, ob die maximale Floor-Time überschritten wurde
+        TimeSpan timeOnFloor = DateTime.Now - state.CurrentBlock.FloorTouchTime;
+        if (timeOnFloor.TotalMilliseconds >= MAX_FLOOR_TIME_MS)
+            return true;
+
+        // Prüft, ob die maximale Anzahl an Floor-Moves überschritten wurde
+        if (state.CurrentBlock.MovesSinceFloorTouch >= MAX_FLOOR_MOVES)
+            return true;
+
+        return false;
     }
 
     /// <summary>
@@ -92,6 +156,18 @@ public class TetrisGameService
             if (IsValidPosition(state, state.CurrentBlock.Position, blockType, newRotation))
             {
                 state.CurrentBlock.Rotation = newRotation;
+
+                // auch Rotationen zählen als Floor-Moves
+                if (state.CurrentBlock.IsOnFloor)
+                {
+                    state.CurrentBlock.MovesSinceFloorTouch++;
+
+                    if (state.CurrentBlock.MovesSinceFloorTouch >= MAX_FLOOR_MOVES)
+                    {
+                        PlaceBlock(state);
+                    }
+                }
+
                 return true;
             }
             return false;
@@ -113,6 +189,23 @@ public class TetrisGameService
             {
                 state.CurrentBlock.Rotation = newRotation;
                 state.CurrentBlock.Position = newPosition;
+
+                // auch Rotationen zählen als Floor-Moves
+                if (state.CurrentBlock.IsOnFloor)
+                {
+                    state.CurrentBlock.MovesSinceFloorTouch++;
+
+                    if (state.CurrentBlock.MovesSinceFloorTouch >= MAX_FLOOR_MOVES)
+                    {
+                        PlaceBlock(state);
+                    }
+
+                    if (CanMoveDown(state))
+                    {
+                        state.CurrentBlock.IsOnFloor = false;
+                    }
+                }
+
                 return true;
             }
         }
@@ -259,13 +352,23 @@ public class TetrisGameService
             }
         }
 
+        // Floo-Kick-State zurücksetzen
+        state.CurrentBlock.IsOnFloor = false;
+        state.CurrentBlock.FloorTouchTime = DateTime.MinValue;
+        state.CurrentBlock.MovesSinceFloorTouch = 0;
+
         int linesCleared = ClearLines(state);
         state.LinesCleared += linesCleared;
         state.Score += CalculateScore(linesCleared);
 
+        // Der Vorschau-Block wird zum aktiven Block gemacht
         state.CurrentBlock = state.NextBlock;
+        // Ein neuer zufälliger Block wird als Vorschau generiert
         state.NextBlock = CreateNewBlock();
 
+        /* Game-Over-Prüfung: Wenn der neue aktive Block an seiner Startposition
+           nicht platziert werden kann (z.B. weil der Stapel bereits zu hoch ist),
+           ist das Spiel direkt vorbei. */
         if (!IsValidPosition(state, state.CurrentBlock.Position, state.CurrentBlock.Type, state.CurrentBlock.Rotation))
         {
             state.IsGameOver = true;

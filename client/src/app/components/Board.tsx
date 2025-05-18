@@ -5,17 +5,14 @@ import styles from "./board.module.css";
 import useWebSocket from "react-use-websocket";
 import GameMessage from "../models/GameMessage";
 import { Pixel } from "./Pixel";
-import { useEnv } from "../env/provider";
 import KeyboardLabel from "./keyboardLabel";
 import { useAuth } from "../context/auth-context";
 
 export default function Board() {
-    const env = useEnv();
+    const wsBaseUrl = process.env.NEXT_PUBLIC_WS_BASE_URL ?? 'ws://localhost:5001';
     const { token } = useAuth();
-    //@ts-expect-error FIXME :)
-    const WS_BASE_URL = env.BACKEND_URL;
     // token anhängen, damit die UserId extracted werden kann im Server
-    const WS_URL = `${WS_BASE_URL}?token=${token}`;
+    const WS_URL = `${wsBaseUrl}?token=${token}`;
     const gridWidth = 10;
     const gridHeight = 20;
 
@@ -144,7 +141,7 @@ export default function Board() {
         setPlayerId("");
     }
 
-    function keyDown($event: React.KeyboardEvent) {
+    function keyDown($event: {key: string}) {
         if ($event.key === "ArrowRight") {
             console.log("Right");
             if (running) {
@@ -187,14 +184,6 @@ export default function Board() {
 
     return (
         <>
-            <div className={styles.infoContainer}>
-                <p>Gamestate: {gameState}</p>
-                <button
-                    disabled={gameState === 'READY' || gameState === 'PLAYING'}
-                    onClick={sendInitMessage}
-                    className={styles.button}
-                >Ready</button>
-            </div>
             <div
                 onKeyDown={keyDown} tabIndex={0}
                 className={styles.boardContainer}
@@ -204,86 +193,109 @@ export default function Board() {
                         <div className={styles.overlay}>
                             <h1>Game over</h1>
                             <p style={{ color: winner === 'You win' ? '#d3fc19' : 'RED' }}>{winner}</p>
-                            <KeyboardLabel label="R" description="Resets the Game" />
+                            <KeyboardLabel label="R" description="Reset" onClick={() => keyDown({key: "R"})} />
                         </div>
                     )
                 }
+                <div>
+                    <div className={styles.infoContainer}>
+                        <p>Gamestate: {gameState}</p>
+                        <button
+                            disabled={gameState === 'READY' || gameState === 'PLAYING'}
+                            onClick={sendInitMessage}
+                            className={styles.button}
+                        >Ready</button>
+                    </div>
 
-                <div
-                    className={styles.board}
-                >
-                    {
-                        selfPixels && (
-
-                            <div
-                                style={{
-                                    display: "grid",
-                                    gridTemplateColumns: `repeat(${gridWidth}, 20px)`,
-                                    gridTemplateRows: `repeat(${gridHeight}, 20px)`,
-                                    gap: "0px",
-                                }}
-                            >
-                                {
-                                    selfPixels.map((pixel, index) => {
-                                        return pixel.render(index);
-                                    })
-                                }
-
+                    <div className={styles.keyboardControlsContainer}>
+                        <div className={styles.arrowKeysContainer}>
+                            <div className={styles.arrowTop}>
+                                <KeyboardLabel label="Up" description="Rotate" onClick={() => keyDown({key: "ArrowUp"})} />
                             </div>
-                        )
-                    }
-
-                    <div>
-                        <p>Nextblock:</p>
-                        <div
-                            className={styles.nextblockContainer}
-                            style={{
-                                gridTemplateColumns: `repeat(${nextBlockPixelWidth}, 20px)`,
-                                gridTemplateRows: `repeat(${nextBlockPixelWidth}, 20px)`,
-                            }}
-                        >
-                            {
-                                nextBlockPixels.map((pixel, index) => {
-                                    return pixel.render(index);
-                                })
-                            }
-
+                            <div className={styles.arrowMiddle}>
+                                <KeyboardLabel label="Left" description="Move left" onClick={() => keyDown({key: "ArrowLeft"})} />
+                                <KeyboardLabel label="Down" description="Move down" onClick={() => keyDown({key: "ArrowDown"})} />
+                                <KeyboardLabel label="Right" description="Move right" onClick={() => keyDown({key: "ArrowRight"})} />
+                            </div>
                         </div>
-                        <div className={styles.keyboardLabelContainer}>
-                            <KeyboardLabel label="Up" description="Rotate the Block" />
-                            <KeyboardLabel label="Down" description="Move down" />
-                            <KeyboardLabel label="Left" description="Move left" />
-                            <KeyboardLabel label="Right" description="Move right" />
-                            <KeyboardLabel label="Space" description="Drop the Block" />
-                            <KeyboardLabel label="R" description="Resets the Game" />
+                        <div className={styles.otherKeysContainer}>
+                            <KeyboardLabel label="Space" description="Drop" widthMultiplier={2} onClick={() => keyDown({key: " "})} />
                         </div>
                     </div>
-                </div>
-                <div
-                    className={styles.separator}
-                ></div>
 
-                <div
-                    className={styles.board}
-                >
-                    {
-                        opponentPixels && (
-                            <div
-                                style={{
-                                    display: "grid",
-                                    gridTemplateColumns: `repeat(${gridWidth}, 20px)`,
-                                    gridTemplateRows: `repeat(${gridHeight}, 20px)`,
-                                    gap: "0px",
-                                }}
-                            >
-                                {
-                                    opponentPixels.slice().reverse().map((pixel, index) => {
-                                        return pixel.render(index);
-                                    })
-                                }
-                            </div>
-                        )
-                    }
+                </div>
+
+                <div>
+                    <div
+                        className={styles.board}
+                    >
+
+
+                        {
+                            selfPixels && (
+
+                                <div
+                                    style={{
+                                        display: "grid",
+                                        gridTemplateColumns: `repeat(${gridWidth}, 20px)`,
+                                        gridTemplateRows: `repeat(${gridHeight}, 20px)`,
+                                        gap: "0px",
+                                    }}
+                                >
+                                    {
+                                        selfPixels.map((pixel, index) => {
+                                            return pixel.render(index);
+                                        })
+                                    }
+
+                                </div>
+                            )
+                        }
+
+
+                    </div>
+                    <div
+                        className={styles.separator}
+                    ></div>
+                    <div
+                        className={styles.board}
+                    >
+                        {
+                            opponentPixels && (
+                                <div
+                                    style={{
+                                        display: "grid",
+                                        gridTemplateColumns: `repeat(${gridWidth}, 20px)`,
+                                        gridTemplateRows: `repeat(${gridHeight}, 20px)`,
+                                        gap: "0px",
+                                    }}
+                                >
+                                    {
+                                        opponentPixels.slice().reverse().map((pixel, index) => {
+                                            return pixel.render(index);
+                                        })
+                                    }
+                                </div>
+                            )
+                        }
+                    </div>
+                </div>
+
+                <div>
+                    <p>Nextblock:</p>
+                    <div
+                        className={styles.nextblockContainer}
+                        style={{
+                            gridTemplateColumns: `repeat(${nextBlockPixelWidth}, 20px)`,
+                            gridTemplateRows: `repeat(${nextBlockPixelWidth}, 20px)`,
+                        }}
+                    >
+                        {
+                            nextBlockPixels.map((pixel, index) => {
+                                return pixel.render(index);
+                            })
+                        }
+                    </div>
                 </div>
             </div>
         </>

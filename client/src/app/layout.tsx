@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { EnvProvider } from "./env/provider";
 import { AuthProvider } from "./context/auth-context";
 
 const geistSans = Geist({
@@ -30,11 +29,9 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Tutris" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <EnvProvider>
           <AuthProvider>
             {children}
           </AuthProvider>
-        </EnvProvider>
       </body>
     </html>
   );

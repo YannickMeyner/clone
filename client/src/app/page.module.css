@@ -36,6 +36,26 @@
   opacity: 0.8;
 }
 
+.navButtons {
+  display: flex;
+  gap: 1rem;
+}
+
+.navButton {
+  padding: 0.5rem 1rem;
+  background-color: #4a4af4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background-color 0.2s;
+}
+
+.navButton:hover {
+  background-color: #3a3acf;
+}
+
 .logoutButton {
   padding: 0.5rem 1rem;
   background-color: #f44336;

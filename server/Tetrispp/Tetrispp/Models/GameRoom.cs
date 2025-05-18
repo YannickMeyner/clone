@@ -3,12 +3,13 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Tetrispp.Services;
+using Tetrispp.Tetris.Randomizer;
 
 namespace Tetrispp.Models;
 
 public class GameRoom
 {
-    private readonly TetrisGameService _gameService = new();
+    private readonly TetrisGameService _gameService;
     private readonly IServiceProvider _serviceProvider;
     private Timer? _gameLoop;
     private readonly object _lockObject = new();
@@ -26,6 +27,8 @@ public class GameRoom
     public GameRoom(IServiceProvider serviceProvider)
     {
         _serviceProvider = serviceProvider;
+        using var scope = _serviceProvider.CreateScope();
+        _gameService = new TetrisGameService(scope.ServiceProvider.GetRequiredService<IRandomizer>());
     }
 
     /// <summary>
@@ -116,6 +119,7 @@ public class GameRoom
         {
             _gameStarted = false;
             GameState.IsGameActive = false;
+            // beendet den Timer
             _gameLoop?.Dispose();
             _gameLoop = null;
         }
@@ -155,7 +159,7 @@ public class GameRoom
             StopGame();
 
             // Spieler benachrichtigen
-            foreach (var remainingPlayer in Players)
+            foreach (var remainingPlayer in Players.ToList())
             {
                 await SendMessage(remainingPlayer.Socket, new
                 {

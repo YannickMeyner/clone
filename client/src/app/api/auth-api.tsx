@@ -1,9 +1,7 @@
 import { AuthResponse, LoginRequest, RegisterRequest } from '../models/auth-types';
 
-const API_BASE_URL = process.env.API_URL || "http://localhost:5001";
-
-export async function login(credentials: LoginRequest): Promise<AuthResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+export async function login(baseUrl: string, credentials: LoginRequest): Promise<AuthResponse> {
+  const response = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -25,8 +23,8 @@ export async function login(credentials: LoginRequest): Promise<AuthResponse> {
   return response.json();
 }
 
-export async function register(credentials: RegisterRequest): Promise<AuthResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+export async function register(baseUrl: string, credentials: RegisterRequest): Promise<AuthResponse> {
+  const response = await fetch(`${baseUrl}/api/auth/register`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

@@ -20,7 +20,7 @@ public class GameConnectionManager
     }
 
     /// <summary>
-    /// Bei einer neuen Websocket-Connection wird ein Player initialisiert und dieser einem passenden Raum zugewiesen
+    /// Bei einer neuen Websocket-Connection wird ein Player initialisiert und dieser einem passenden Raum zugewiesen (sobald die Join-Nachricht vom Client kommt)
     /// </summary>
     public async Task HandlePlayer(WebSocket socket, string token)
     {

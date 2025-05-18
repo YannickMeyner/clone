@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Tetrispp.Data;
 using Tetrispp.Services;
+using Tetrispp.Tetris.Randomizer;
 
 namespace Tetrispp;
 
@@ -19,18 +20,11 @@ public class Startup
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton<GameConnectionManager>();
+        services.AddScoped<IRandomizer, PickOneRandomizer>();
 
         services.AddDbContext<SqlContext>(options =>
         {
-            var host = _configuration["DB_HOST"];
-            var port = _configuration["DB_PORT"];
-            var database = _configuration["DB_NAME"];
-            var username = _configuration["DB_USER"];
-            var password = _configuration["DB_PASSWORD"];
-
-            var connectionString = $"Host={host};Port={port};Database={database};Username={username};Password={password}";
-
-            options.UseNpgsql(connectionString);
+            options.UseNpgsql(_configuration.GetConnectionString("DefaultConnection"));
         });
 
         services.AddSingleton<MigrationManagerService>();

@@ -1,0 +1,132 @@
+.page {
+    display: grid;
+    grid-template-rows: auto 1fr 20px;
+    align-items: center;
+    justify-items: center;
+    min-height: 100svh;
+    font-family: var(--font-geist-sans);
+  }
+  
+  .header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    background-color: rgba(0, 0, 0, 0.1);
+  }
+  
+  .userInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .navButtons {
+    display: flex;
+    gap: 1rem;
+  }
+  
+  .navButton {
+    padding: 0.5rem 1rem;
+    background-color: #4a4af4;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: background-color 0.2s;
+  }
+  
+  .navButton:hover {
+    background-color: #3a3acf;
+  }
+  
+  .logoutButton {
+    padding: 0.5rem 1rem;
+    background-color: #f44336;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: background-color 0.2s;
+  }
+  
+  .logoutButton:hover {
+    background-color: #d32f2f;
+  }
+  
+  .main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem;
+    width: 100%;
+    max-width: 800px;
+  }
+  
+  .title {
+    margin-bottom: 2rem;
+    font-size: 2rem;
+    text-align: center;
+  }
+  
+  .highscoresContainer {
+    width: 100%;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+  }
+  
+  .highscoresTable {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .highscoresTable th,
+  .highscoresTable td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-weight: 400;
+  }
+  
+  .highscoresTable th {
+    background-color: rgba(0, 0, 0, 0.2);
+    font-weight: 800;
+  }
+  
+  .highscoresTable tr:last-child td {
+    border-bottom: none;
+  }
+  
+  .highscoresTable tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+  
+  .rankColumn {
+    width: 60px;
+    text-align: center;
+  }
+  
+  .currentUser {
+    background-color: rgba(74, 74, 244, 0.1);
+    font-weight: 600;
+  }
+  
+  .noScores {
+    text-align: center;
+    padding: 2rem;
+    color: rgba(255, 255, 255, 0.6);
+  }
+  
+  .error {
+    color: #f44336;
+    text-align: center;
+    padding: 1rem;
+    background-color: rgba(244, 67, 54, 0.1);
+    border-radius: 4px;
+    margin-bottom: 1rem;
+  }

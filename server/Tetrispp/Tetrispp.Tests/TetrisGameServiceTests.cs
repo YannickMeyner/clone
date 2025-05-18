@@ -1,6 +1,7 @@
 ﻿using System;
 using Tetrispp.Models;
 using Tetrispp.Services;
+using Tetrispp.Tetris.Randomizer;
 
 namespace Tetrispp.Tests
 {
@@ -10,7 +11,7 @@ namespace Tetrispp.Tests
 
         public TetrisGameServiceTests()
         {
-            _gameService = new TetrisGameService();
+            _gameService = new TetrisGameService(new PickOneRandomizer());
         }
 
         [Fact]
@@ -166,43 +167,50 @@ namespace Tetrispp.Tests
         {
             // Arrange
             var playerState = _gameService.InitializePlayerState(1);
-            var oldNextBlock = playerState.NextBlock;
-            
+            playerState.NextBlock = new Tetromino(TetrominoType.I);
+
             // Block ganz nach unten setzen
-            playerState.CurrentBlock.Position = new Position(3, 19);
-            playerState.CurrentBlock.Type = TetrominoType.O; // O-Block ist 2x2
+            playerState.CurrentBlock.Position = new Position(3, 18);
+            playerState.CurrentBlock.Type = TetrominoType.O;
             playerState.CurrentBlock.Rotation = 0;
-            
+
             // Act - versuchen, den Block nach unten zu bewegen
             var result = _gameService.MoveBlock(playerState, "DOWN");
-            
+
             // Assert
             Assert.True(result);
-            Assert.Equal(oldNextBlock, playerState.CurrentBlock); // Neuer aktueller Block sollte der alte NextBlock sein
-            Assert.NotNull(playerState.NextBlock); // Sollte einen neuen NextBlock generieren
-            Assert.NotEqual(oldNextBlock, playerState.NextBlock); // Neuer NextBlock sollte nicht der alte NextBlock sein
+            Assert.Equal(TetrominoType.O, playerState.CurrentBlock.Type);
+            Assert.NotNull(playerState.NextBlock);
+            Assert.NotEqual(playerState.CurrentBlock.Type, playerState.NextBlock.Type);
         }
 
         [Fact]
-        public void RotateBlock_InvalidRotation_ReturnsFalse()
+        public void RotateBlock_WithWallKick_SuccessfullyRotatesBlock()
         {
             // Arrange
             var playerState = _gameService.InitializePlayerState(1);
-            
-            // Null-Check hinzufügen
             Assert.NotNull(playerState.CurrentBlock);
-            
-            // Block näher am rechten Rand positionieren, wo ein T-Block nicht rotieren kann
+
+            // Einen T-Block direkt an der rechten Wand positionieren
+            // Eine normale Rotation wäre hier nicht möglich, aber Wall-Kicks sollten funktionieren
             playerState.CurrentBlock.Position = new Position(8, 5);
             playerState.CurrentBlock.Type = TetrominoType.T;
             playerState.CurrentBlock.Rotation = 0;
-            
-            // Act - versuchen, den Block zu drehen
+
+            var originalPosition = new Position(
+                playerState.CurrentBlock.Position.X,
+                playerState.CurrentBlock.Position.Y
+            );
+
+            // Act -> Versuch, den Block zu drehen
             var result = _gameService.RotateBlock(playerState);
-            
+
             // Assert
-            Assert.False(result);
-            Assert.Equal(0, playerState.CurrentBlock.Rotation); // Rotation sollte unverändert bleiben
+            Assert.True(result); // Die Rotation sollte erfolgreich sein dank Wall-Kicks
+            Assert.Equal(1, playerState.CurrentBlock.Rotation); // Die Rotation sollte von 0 auf 1 geändert worden sein
+            Assert.NotEqual(originalPosition.X, playerState.CurrentBlock.Position.X); // Bei einem T-Block an der Wand (X=8) wird erwartet, dass er nach links verschoben wird
+            Assert.Equal(originalPosition.X - 1, playerState.CurrentBlock.Position.X); // Gemäss SRS-Regeln sollte der erste Test (-1, 0) erfolgreich sein
+            Assert.Equal(originalPosition.Y, playerState.CurrentBlock.Position.Y);
         }
 
         [Fact]

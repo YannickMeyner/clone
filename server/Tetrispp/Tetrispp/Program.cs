@@ -1,13 +1,9 @@
-using DotNetEnv;
-
 namespace Tetrispp;
 
 public class Program
 {
     public static void Main(string[] args)
     {
-        Env.Load();
-
         CreateHostBuilder(args).Build().Run();
     }
 

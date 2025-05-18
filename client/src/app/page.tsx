@@ -34,15 +34,20 @@ export default function Home() {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
+        <h1>Tutris 👻🥳</h1>
         <div className={styles.userInfo}>
           Welcome, {user?.username}!
         </div>
-        <button onClick={logout} className={styles.logoutButton}>
-          Logout
-        </button>
+        <div className={styles.navButtons}>
+          <button onClick={() => router.push('/highscores')} className={styles.navButton}>
+            Highscores
+          </button>
+          <button onClick={logout} className={styles.logoutButton}>
+            Logout
+          </button>
+        </div>
       </header>
       <main className={styles.main}>
-        <h1>Tutris 👻🥳</h1>
         <Board />
       </main>
     </div>

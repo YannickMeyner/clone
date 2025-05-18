@@ -3,9 +3,12 @@ export class Pixel {
 
     style = {}
     color = "lime";
+    value = 0;
 
     constructor(type: number, style: object) {
         this.style = style;
+        this.value = type;
+
         switch (type) {
             case 0:
                 this.color = "#f3f3f3";
@@ -44,14 +47,26 @@ export class Pixel {
     }
 
     render(key: number) {
+        const isEmpty = this.value === 0;
+
         return (
             <div
                 key={key}
                 style={{
                     width: "20px",
                     height: "20px",
-                    backgroundColor: this.color,
-                    border: "1px solid white",
+                    backgroundColor: isEmpty ? "inherit" : this.color,
+                    borderRadius: isEmpty ? "0" : "3px",
+                    border: isEmpty ? "none" : "none",
+                    boxShadow: isEmpty 
+                        ? "none" 
+                        : `inset 2px 2px 3px rgba(255,255,255,0.4),
+                           inset -2px -2px 3px rgba(0,0,0,0.4),
+                           0 0 5px ${this.color}`,
+                    margin: "1px",
+                    transition: "all 0.1s ease",
+                    transform: isEmpty ? "scale(1)" : "scale(0.95)",
+
                     ...this.style,
                 }}
             ></div>
