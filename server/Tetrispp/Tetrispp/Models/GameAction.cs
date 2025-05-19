@@ -6,7 +6,8 @@ public class GameAction
 {
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public required ActionType ActionType { get; set; }
-    public string? Direction { get; set; }
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public Direction? Direction { get; set; }
     public int? Rotation { get; set; }
 }
 
@@ -19,4 +20,12 @@ public enum ActionType
     Stop,
     Join,
     Init
+}
+
+public enum Direction
+{
+    Left,
+    Right,
+    Down,
+    Drop
 }

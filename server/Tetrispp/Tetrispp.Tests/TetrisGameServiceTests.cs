@@ -42,7 +42,6 @@ namespace Tetrispp.Tests
             Assert.Equal(userId, playerState.UserId);
             Assert.NotNull(playerState.CurrentBlock);
             Assert.NotNull(playerState.NextBlock);
-            Assert.Equal(0, playerState.Score);
             Assert.Equal(0, playerState.LinesCleared);
             Assert.False(playerState.IsGameOver);
             Assert.Null(playerState.CompletedLines);
@@ -66,7 +65,7 @@ namespace Tetrispp.Tests
             var initialY = playerState.CurrentBlock.Position.Y;
 
             // Act
-            var result = _gameService.MoveBlock(playerState, "LEFT");
+            var result = _gameService.MoveBlock(playerState, Direction.Left);
 
             // Assert
             Assert.True(result);
@@ -83,7 +82,7 @@ namespace Tetrispp.Tests
             var initialY = playerState.CurrentBlock.Position.Y;
 
             // Act
-            var result = _gameService.MoveBlock(playerState, "RIGHT");
+            var result = _gameService.MoveBlock(playerState, Direction.Right);
 
             // Assert
             Assert.True(result);
@@ -100,7 +99,7 @@ namespace Tetrispp.Tests
             var initialY = playerState.CurrentBlock.Position.Y;
 
             // Act
-            var result = _gameService.MoveBlock(playerState, "DOWN");
+            var result = _gameService.MoveBlock(playerState, Direction.Down);
 
             // Assert
             Assert.True(result);
@@ -133,7 +132,7 @@ namespace Tetrispp.Tests
             playerState.CurrentBlock.Position = new Position(0, 5);
             
             // Act - versuchen, den Block nach links zu bewegen (ausserhalb des Spielfelds)
-            var result = _gameService.MoveBlock(playerState, "LEFT");
+            var result = _gameService.MoveBlock(playerState, Direction.Left);
             
             // Assert
             Assert.False(result);
@@ -155,7 +154,7 @@ namespace Tetrispp.Tests
             playerState.CurrentBlock.Rotation = 0;
             
             // Act - versuchen, den Block nach links zu bewegen (in besetzte Zellen)
-            var result = _gameService.MoveBlock(playerState, "LEFT");
+            var result = _gameService.MoveBlock(playerState, Direction.Left);
             
             // Assert
             Assert.False(result);
@@ -175,7 +174,7 @@ namespace Tetrispp.Tests
             playerState.CurrentBlock.Rotation = 0;
 
             // Act - versuchen, den Block nach unten zu bewegen
-            var result = _gameService.MoveBlock(playerState, "DOWN");
+            var result = _gameService.MoveBlock(playerState, Direction.Down);
 
             // Assert
             Assert.True(result);

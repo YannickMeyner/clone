@@ -11,8 +11,6 @@ public class PlayerState
 
     public Tetromino? CurrentBlock { get; set; }
     public Tetromino? NextBlock { get; set; }
-    // Gesamtpunktzahl: wird hochaddiert bei gelösten Reihen
-    public int Score { get; set; } = 0;
     // Gesamtzahl der Reihen, die ein Spieler gelöscht hat
     public int LinesCleared { get; set; } = 0;
     public bool IsGameOver { get; set; } = false;

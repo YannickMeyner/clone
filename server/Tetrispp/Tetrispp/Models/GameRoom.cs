@@ -194,7 +194,7 @@ public class GameRoom
         {
             if (playerState.CurrentBlock != null && !playerState.IsGameOver)
             {
-                if (_gameService.MoveBlock(playerState, "DOWN"))
+                if (_gameService.MoveBlock(playerState, Direction.Down))
                 {
                     blockPlaced = true;
                 }
@@ -327,7 +327,6 @@ public class GameRoom
                             grid = PopulateCurrentBlockIntoGrid(SerializeGrid(selfState.Grid), selfState.CurrentBlock),
                             currentBlock = selfState.CurrentBlock,
                             nextBlock = TransformBlockIntoGrid(selfState.NextBlock),
-                            score = selfState.Score,
                             linesCleared = selfState.LinesCleared,
                             isGameOver = selfState.IsGameOver
                         },
@@ -336,7 +335,6 @@ public class GameRoom
                             userId = opponentState.UserId,
                             grid = PopulateCurrentBlockIntoGrid(SerializeGrid(opponentState.Grid), opponentState.CurrentBlock),
                             currentBlock = opponentState.CurrentBlock,
-                            score = opponentState.Score,
                             linesCleared = opponentState.LinesCleared,
                             isGameOver = opponentState.IsGameOver
                         } : null
@@ -359,7 +357,7 @@ public class GameRoom
         if (currentBlock == null)
             return grid;
 
-        var shape = TetrominoShapes.Shapes[currentBlock.Type][currentBlock.Rotation];
+        var shape = TetrominoShapes.GetShape(currentBlock.Type, currentBlock.Rotation);
         var size = TetrominoShapes.ShapeSizes[currentBlock.Type];
         var originX = currentBlock.Position.X;   
         var originY = currentBlock.Position.Y;
@@ -395,7 +393,7 @@ public class GameRoom
         if (currentBlock == null)
             return new List<List<int>>();
 
-        var shape = TetrominoShapes.Shapes[currentBlock.Type][currentBlock.Rotation];
+        var shape = TetrominoShapes.GetShape(currentBlock.Type, currentBlock.Rotation);
         var size = shape.Length;
         var result = new List<List<int>>();
 

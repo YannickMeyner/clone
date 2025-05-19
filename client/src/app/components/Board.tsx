@@ -7,6 +7,7 @@ import GameMessage from "../models/GameMessage";
 import { Pixel } from "./Pixel";
 import KeyboardLabel from "./keyboardLabel";
 import { useAuth } from "../context/auth-context";
+import { ActionType, Direction } from "../models/GameAction";
 
 export default function Board() {
     const wsBaseUrl = process.env.NEXT_PUBLIC_WS_BASE_URL ?? 'ws://localhost:5001';
@@ -78,27 +79,32 @@ export default function Board() {
         console.log("Sending message: readyState:", readyState); // UNINSTANTIATED = -1, CONNECTING = 0, OPEN = 1, CLOSING = 2, CLOSED = 3
     }, [readyState]);
 
+    
     function sendInitMessage() {
         const message = {
-            "ActionType": "Join"
+            "ActionType": ActionType.Join
         };
         sendJsonMessage(message);
     }
 
-    function sendMoveMessage(direction: "LEFT" | "RIGHT" | "DOWN" | "DROP") {
-        const message = direction === "DROP" ? {
-            "ActionType": "Drop",
-        } : {
-            "ActionType": "Move",
-            "Direction": direction,
-        };
-
-        sendJsonMessage(message);
+    function sendMoveMessage(direction: Direction) {
+        if (direction === Direction.Drop) {
+            const message = {
+                "ActionType": ActionType.Drop,
+            };
+            sendJsonMessage(message);
+        } else {
+            const message = {
+                "ActionType": ActionType.Move,
+                "Direction": direction,
+            };
+            sendJsonMessage(message);
+        }
     }
 
     function sendRotateMessage() {
         const message = {
-            "ActionType": "Rotate",
+            "ActionType": ActionType.Rotate,
         };
         sendJsonMessage(message);
     }
@@ -145,19 +151,19 @@ export default function Board() {
         if ($event.key === "ArrowRight") {
             console.log("Right");
             if (running) {
-                sendMoveMessage("RIGHT");
+                sendMoveMessage(Direction.Right);
             }
 
         } else if ($event.key === "ArrowLeft") {
             console.log("Left");
             if (running) {
-                sendMoveMessage("LEFT");
+                sendMoveMessage(Direction.Left);
             }
 
         } else if ($event.key === "ArrowDown") {
             console.log("Down");
             if (running) {
-                sendMoveMessage("DOWN");
+                sendMoveMessage(Direction.Down);
             }
 
         } else if ($event.key === "ArrowUp") {
@@ -169,7 +175,7 @@ export default function Board() {
         } else if ($event.key === " ") {
             console.log("Space");
             if (running) {
-                sendMoveMessage("DROP");
+                sendMoveMessage(Direction.Drop);
             }
 
         } else if ($event.key === "Escape") {

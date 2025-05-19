@@ -2,210 +2,54 @@
 
 public class TetrominoShapes
 {
-    public static readonly Dictionary<TetrominoType, int[][][]> Shapes = new()
+    // Nur die Grundformen (0° Rotation) speichern
+    private static readonly Dictionary<TetrominoType, int[][]> BaseShapes = new()
     {
         [TetrominoType.I] = new[]
         {
-            // 0° Rotation
-            new[]
-            {
-                new[] {0,0,0,0},
-                new[] {1,1,1,1},
-                new[] {0,0,0,0},
-                new[] {0,0,0,0}
-            },
-            // 90° Rotation
-            new[]
-            {
-                new[] {0,0,1,0},
-                new[] {0,0,1,0},
-                new[] {0,0,1,0},
-                new[] {0,0,1,0}
-            },
-            // 180° Rotation
-            new[]
-            {
-                new[] {0,0,0,0},
-                new[] {0,0,0,0},
-                new[] {1,1,1,1},
-                new[] {0,0,0,0}
-            },
-            // 270° Rotation
-            new[]
-            {
-                new[] {0,1,0,0},
-                new[] {0,1,0,0},
-                new[] {0,1,0,0},
-                new[] {0,1,0,0}
-            }
+            new[] {0,0,0,0},
+            new[] {1,1,1,1},
+            new[] {0,0,0,0},
+            new[] {0,0,0,0}
         },
-
         [TetrominoType.O] = new[]
         {
-            new[]
-            {
-                new[] {2,2},
-                new[] {2,2}
-            },
-            new[]
-            {
-                new[] {2,2},
-                new[] {2,2}
-            },
-            new[]
-            {
-                new[] {2,2},
-                new[] {2,2}
-            },
-            new[]
-            {
-                new[] {2,2},
-                new[] {2,2}
-            }
+            new[] {2,2},
+            new[] {2,2}
         },
-
         [TetrominoType.T] = new[]
         {
-            new[]
-            {
-                new[] {0,3,0},
-                new[] {3,3,3},
-                new[] {0,0,0}
-            },
-            new[]
-            {
-                new[] {0,3,0},
-                new[] {0,3,3},
-                new[] {0,3,0}
-            },
-            new[]
-            {
-                new[] {0,0,0},
-                new[] {3,3,3},
-                new[] {0,3,0}
-            },
-            new[]
-            {
-                new[] {0,3,0},
-                new[] {3,3,0},
-                new[] {0,3,0}
-            }
+            new[] {0,3,0},
+            new[] {3,3,3},
+            new[] {0,0,0}
         },
-
         [TetrominoType.S] = new[]
         {
-            new[]
-            {
-                new[] {0,4,4},
-                new[] {4,4,0},
-                new[] {0,0,0}
-            },
-            new[]
-            {
-                new[] {0,4,0},
-                new[] {0,4,4},
-                new[] {0,0,4}
-            },
-            new[]
-            {
-                new[] {0,0,0},
-                new[] {0,4,4},
-                new[] {4,4,0}
-            },
-            new[]
-            {
-                new[] {4,0,0},
-                new[] {4,4,0},
-                new[] {0,4,0}
-            }
+            new[] {0,4,4},
+            new[] {4,4,0},
+            new[] {0,0,0}
         },
-
         [TetrominoType.Z] = new[]
         {
-            new[]
-            {
-                new[] {5,5,0},
-                new[] {0,5,5},
-                new[] {0,0,0}
-            },
-            new[]
-            {
-                new[] {0,0,5},
-                new[] {0,5,5},
-                new[] {0,5,0}
-            },
-            new[]
-            {
-                new[] {0,0,0},
-                new[] {5,5,0},
-                new[] {0,5,5}
-            },
-            new[]
-            {
-                new[] {0,5,0},
-                new[] {5,5,0},
-                new[] {5,0,0}
-            }
+            new[] {5,5,0},
+            new[] {0,5,5},
+            new[] {0,0,0}
         },
-
         [TetrominoType.J] = new[]
         {
-            new[]
-            {
-                new[] {6,0,0},
-                new[] {6,6,6},
-                new[] {0,0,0}
-            },
-            new[]
-            {
-                new[] {0,6,6},
-                new[] {0,6,0},
-                new[] {0,6,0}
-            },
-            new[]
-            {
-                new[] {0,0,0},
-                new[] {6,6,6},
-                new[] {0,0,6}
-            },
-            new[]
-            {
-                new[] {0,6,0},
-                new[] {0,6,0},
-                new[] {6,6,0}
-            }
+            new[] {6,0,0},
+            new[] {6,6,6},
+            new[] {0,0,0}
         },
-
         [TetrominoType.L] = new[]
         {
-            new[]
-            {
-                new[] {0,0,7},
-                new[] {7,7,7},
-                new[] {0,0,0}
-            },
-            new[]
-            {
-                new[] {0,7,0},
-                new[] {0,7,0},
-                new[] {0,7,7}
-            },
-            new[]
-            {
-                new[] {0,0,0},
-                new[] {7,7,7},
-                new[] {7,0,0}
-            },
-            new[]
-            {
-                new[] {7,7,0},
-                new[] {0,7,0},
-                new[] {0,7,0}
-            }
+            new[] {0,0,7},
+            new[] {7,7,7},
+            new[] {0,0,0}
         }
     };
 
-    // Tetromino-Grössen
+    // Tetromino-Grössen (werden für Rotationsberechnungen benötigt)
     public static readonly Dictionary<TetrominoType, int> ShapeSizes = new()
     {
         [TetrominoType.I] = 4, // I ist 4x4
@@ -217,19 +61,54 @@ public class TetrominoShapes
         [TetrominoType.L] = 3  // L ist 3x3
     };
 
-    // Zufälligen Tetromino-Typ generieren
-    public static TetrominoType GetRandomType()
+    // Gibt die berechnete Matrix/Form je nach Rotation zurück
+    public static int[][] GetShape(TetrominoType type, int rotation)
     {
-        var values = Enum.GetValues<TetrominoType>();
-        Random rnd = new();
-        return values[rnd.Next(values.Length)];
+        // O-Tetromino ändert sich nicht bei Rotation
+        if (type == TetrominoType.O)
+            return BaseShapes[type];
+
+        // Grundform für 0° Rotation zurückgeben
+        if (rotation == 0)
+            return BaseShapes[type];
+
+        // Rotation für andere Winkel berechnen
+        int[][] baseShape = BaseShapes[type];
+        int size = ShapeSizes[type];
+
+        // Rotation mehrmals anwenden, falls nötig (pro Durchlauf wird die Matrix um 90° gedreht)
+        int[][] result = baseShape;
+        for (int i = 0; i < rotation; i++)
+        {
+            result = RotateMatrixClockwise(result, size);
+        }
+
+        return result;
     }
 
-    // Tetromino-Typ zu Wert im Grid
-    public static int GetValueForType(TetrominoType type)
+    /*
+    Dreht die Matrix um 90° im Uhrzeigersinn
+    Die Zeilen werden zu Spalten, wobei die erste Zeile zur letzten Spalte wird
+    [0,0] [0,1] [0,2]     [2,0] [1,0] [0,0]
+    [1,0] [1,1] [1,2] --> [2,1] [1,1] [0,1]
+    [2,0] [2,1] [2,2]     [2,2] [1,2] [0,2]
+     */
+    private static int[][] RotateMatrixClockwise(int[][] matrix, int size)
     {
-        // Wir nehmen einfach den Enum-Wert + 1, da Enum bei 0 beginnt
-        // und wir 0 für leere Zellen reservieren
-        return (int)type + 1;
+        int[][] rotated = new int[size][];
+        for (int i = 0; i < size; i++)
+        {
+            rotated[i] = new int[size];
+        }
+
+        for (int row = 0; row < size; row++)
+        {
+            for (int col = 0; col < size; col++)
+            {
+                rotated[col][size - 1 - row] = matrix[row][col];
+            }
+        }
+
+        return rotated;
     }
 }

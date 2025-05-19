@@ -45,14 +45,14 @@ public class TetrisGameService
     /// <summary>
     /// Bewegt den Block nach links, rechts oder unten
     /// </summary>
-    public bool MoveBlock(PlayerState state, string direction)
+    public bool MoveBlock(PlayerState state, Direction? direction)
     {
         if (state.CurrentBlock == null || state.IsGameOver)
             return false;
 
         var newPosition = new Position(
-            state.CurrentBlock.Position.X + (direction == "LEFT" ? -1 : direction == "RIGHT" ? 1 : 0),
-            state.CurrentBlock.Position.Y + (direction == "DOWN" ? 1 : 0)
+            state.CurrentBlock.Position.X + (direction == Direction.Left ? -1 : direction == Direction.Right ? 1 : 0),
+            state.CurrentBlock.Position.Y + (direction == Direction.Down ? 1 : 0)
         );
         Console.WriteLine($"Bewege Block {state.CurrentBlock.Type} von ({state.CurrentBlock.Position.X}, {state.CurrentBlock.Position.Y}) nach ({newPosition.X}, {newPosition.Y})");
 
@@ -62,7 +62,7 @@ public class TetrisGameService
             state.CurrentBlock.Position = newPosition;
 
             // wenn horizontal bewegt wird während der Block am Boden ist, wird der MAX_FLOOR_MOVES-Counter erhöht
-            if (direction == "LEFT" || direction == "RIGHT")
+            if (direction == Direction.Left || direction == Direction.Right)
             {
                 if (state.CurrentBlock.IsOnFloor)
                 {
@@ -78,7 +78,7 @@ public class TetrisGameService
             }
 
             // Wenn nach unten bewegt wurde, überprüfen, ob der Block auf etwas stösst
-            if (direction == "DOWN")
+            if (direction == Direction.Down)
             {
                 // Setze den IsOnFloor-Status zurück wenn nach unten bewegt wird
                 state.CurrentBlock.IsOnFloor = false;
@@ -98,7 +98,7 @@ public class TetrisGameService
 
         // Wenn nach unten bewegt wurde und die Position ungültig ist,
         // Prüfe, ob der Block gelocked werden soll oder der Floor-Kick-Timer gestartet werden soll
-        if (direction == "DOWN")
+        if (direction == Direction.Down)
         {
             if (!state.CurrentBlock.IsOnFloor)
             {
@@ -296,7 +296,7 @@ public class TetrisGameService
     /// </summary>
     public bool IsValidPosition(PlayerState state, Position position, TetrominoType blockType, int rotation)
     {
-        var shape = TetrominoShapes.Shapes[blockType][rotation];
+        var shape = TetrominoShapes.GetShape(blockType, rotation);
         int shapeSize = TetrominoShapes.ShapeSizes[blockType];
 
         for (int y = 0; y < shapeSize; y++)
@@ -331,7 +331,7 @@ public class TetrisGameService
         if (state.CurrentBlock == null)
             return;
 
-        var shape = TetrominoShapes.Shapes[state.CurrentBlock.Type][state.CurrentBlock.Rotation];
+        var shape = TetrominoShapes.GetShape(state.CurrentBlock.Type, state.CurrentBlock.Rotation);
         int shapeSize = TetrominoShapes.ShapeSizes[state.CurrentBlock.Type];
 
         // Block im Grid platzieren
@@ -359,7 +359,6 @@ public class TetrisGameService
 
         int linesCleared = ClearLines(state);
         state.LinesCleared += linesCleared;
-        state.Score += CalculateScore(linesCleared);
 
         // Der Vorschau-Block wird zum aktiven Block gemacht
         state.CurrentBlock = state.NextBlock;
@@ -490,20 +489,5 @@ public class TetrisGameService
                 }
             }
         }
-    }
-
-    /// <summary>
-    /// Berechnet die Punktzahl basierend auf der Anzahl der gelöschten Reihen
-    /// </summary>
-    private int CalculateScore(int linesCleared)
-    {
-        return linesCleared switch
-        {
-            1 => 100,
-            2 => 300, // 2 Reihen gleichzeitig
-            3 => 500, // 3 Reihen gleichzeitig
-            4 => 800, // 4 Reihen gleichzeitig
-            _ => 0
-        };
     }
 }

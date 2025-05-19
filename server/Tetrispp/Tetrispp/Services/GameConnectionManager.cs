@@ -50,7 +50,7 @@ public class GameConnectionManager
 
                 if (action?.ActionType == ActionType.Join)
                 {
-                    var room = FindAvailableRoom();
+                    var room = FindAvailableRoom(userId);
                     var player = new Player(socket, userId);
                     room.AddPlayer(player);
                     _connections.TryAdd(socket, room.RoomId);
@@ -138,10 +138,10 @@ public class GameConnectionManager
     /// <summary>
     /// Findet einen verfügbaren Raum oder erstellt einen neuen
     /// </summary>
-    private GameRoom FindAvailableRoom()
+    private GameRoom FindAvailableRoom(int userId)
     {
-        // Suche nach Raum mit freiem Platz (max 2 Spieler)
-        var availableRoom = _rooms.Values.FirstOrDefault(room => !room.IsFull);
+        // Suche nach Raum mit freiem Platz (max 2 Spieler) ohne den aktuellen Spieler
+        var availableRoom = _rooms.Values.FirstOrDefault(room => !room.IsFull && !room.Players.Any(p => p.UserId == userId));
         if (availableRoom == null)
         {
             var newRoom = new GameRoom(_serviceProvider);
