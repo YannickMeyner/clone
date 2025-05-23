@@ -76,9 +76,20 @@ public class Startup
                     return;
                 }
 
+                // Prüfen, ob ein Spectator-Parameter existiert (wird im Client mitgegeben)
+                bool isSpectator = context.Request.Query.ContainsKey("spectate");
+                string roomId = context.Request.Query["roomId"].ToString();
+
                 var webSocket = await context.WebSockets.AcceptWebSocketAsync();
                 var connectionManager = app.ApplicationServices.GetService<GameConnectionManager>();
-                await connectionManager!.HandlePlayer(webSocket, token);
+
+                if (isSpectator && !string.IsNullOrEmpty(roomId))
+                {
+                    await connectionManager!.HandleSpectator(webSocket, token, roomId);
+                } else
+                {
+                    await connectionManager!.HandlePlayer(webSocket, token);
+                }
             } else
             {
                 await next();

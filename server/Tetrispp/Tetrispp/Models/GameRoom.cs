@@ -2,6 +2,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Tetrispp.Data;
 using Tetrispp.Services;
 using Tetrispp.Tetris.Randomizer;
 
@@ -17,6 +18,7 @@ public class GameRoom
 
     public string RoomId { get; } = Guid.NewGuid().ToString();
     public List<Player> Players { get; } = new();
+    public List<Player> Spectators { get; } = new();
     public GameState GameState { get; } = new();
     public bool IsFull => Players.Count >= 2;
     public bool IsEmpty => Players.Count == 0;
@@ -65,11 +67,22 @@ public class GameRoom
     {
         StopGame();
 
+        var action = "GAME_OVER";
+
         await BroadcastMessage(new
         {
-            action = "GAME_OVER",
+            action = action,
             winnerId = winnerId
         });
+
+        foreach (var spectator in Spectators)
+        {
+            await SendMessage(spectator.Socket, new
+            {
+                action = action,
+                winnerId = winnerId
+            });
+        }
 
         using var scope = _serviceProvider.CreateScope();
         var scoreService = scope.ServiceProvider.GetRequiredService<ScoreService>();
@@ -144,6 +157,13 @@ public class GameRoom
         }
     }
 
+    public void AddSpectator(Player spectator)
+    {
+        Spectators.Add(spectator);
+        // sendet sofort den aktuellen Spielstand
+        _ = SendGameStateToSpectator(spectator);
+    }
+
     /// <summary>
     /// Entfernt einen Spieler aus dem Raum
     /// </summary>
@@ -167,6 +187,15 @@ public class GameRoom
                     userId = player.UserId
                 });
             }
+        }
+    }
+
+    public async Task RemoveSpectator(WebSocket socket)
+    {
+        var spectator = Spectators.FirstOrDefault(s => s.Socket == socket);
+        if (spectator != null)
+        {
+            Spectators.Remove(spectator);
         }
     }
 
@@ -298,53 +327,16 @@ public class GameRoom
     /// </summary>
     private async Task BroadcastGameState()
     {
-        var jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-        };
-
         foreach (var player in Players)
         {
-            // Spielstatus für diesen Spieler zusammenstellen
-            var selfState = GameState.Players[player.UserId];
+            await SendGameStateToPlayer(player);
+        }
 
-            // Gegner finden
-            var opponent = GameState.Players.FirstOrDefault(p => p.Key != player.UserId);
-            PlayerState? opponentState = opponent.Value;
-
-            // Zusammengestellten Spielstatus senden
-            await SendMessage(player.Socket, new
-            {
-                action = "UPDATE",
-                gameState = new
-                {
-                    players = new
-                    {
-                        self = new
-                        {
-                            userId = selfState.UserId,
-                            grid = PopulateCurrentBlockIntoGrid(SerializeGrid(selfState.Grid), selfState.CurrentBlock),
-                            currentBlock = selfState.CurrentBlock,
-                            nextBlock = TransformBlockIntoGrid(selfState.NextBlock),
-                            linesCleared = selfState.LinesCleared,
-                            isGameOver = selfState.IsGameOver
-                        },
-                        opponent = opponentState != null ? new
-                        {
-                            userId = opponentState.UserId,
-                            grid = PopulateCurrentBlockIntoGrid(SerializeGrid(opponentState.Grid), opponentState.CurrentBlock),
-                            currentBlock = opponentState.CurrentBlock,
-                            linesCleared = opponentState.LinesCleared,
-                            isGameOver = opponentState.IsGameOver
-                        } : null
-                    },
-                    isGameActive = GameState.IsGameActive
-                }
-            }, jsonOptions);
+        foreach (var spectator in Spectators)
+        {
+            await SendGameStateToSpectator(spectator);
         }
     }
-
 
     /// <summary>
     /// Hilfsmethode zum Einfügen des aktuellen Blocks in das Grid
@@ -359,7 +351,7 @@ public class GameRoom
 
         var shape = TetrominoShapes.GetShape(currentBlock.Type, currentBlock.Rotation);
         var size = TetrominoShapes.ShapeSizes[currentBlock.Type];
-        var originX = currentBlock.Position.X;   
+        var originX = currentBlock.Position.X;
         var originY = currentBlock.Position.Y;
 
         for (int y = 0; y < size; y++)
@@ -389,7 +381,8 @@ public class GameRoom
     /// </summary>
     /// <param name="currentBlock"></param>
     /// <returns></returns>
-    private List<List<int>> TransformBlockIntoGrid(Tetromino currentBlock) {
+    private List<List<int>> TransformBlockIntoGrid(Tetromino currentBlock)
+    {
         if (currentBlock == null)
             return new List<List<int>>();
 
@@ -397,9 +390,11 @@ public class GameRoom
         var size = shape.Length;
         var result = new List<List<int>>();
 
-        for (int y = 0; y < size; y++) {
+        for (int y = 0; y < size; y++)
+        {
             var row = new List<int>();
-            for (int x = 0; x < size; x++) {
+            for (int x = 0; x < size; x++)
+            {
                 row.Add(shape[y][x]);
             }
             result.Add(row);
@@ -463,5 +458,89 @@ public class GameRoom
         {
             await SendMessage(player.Socket, message, jsonOptions);
         }
+    }
+
+    private async Task SendGameStateToPlayer(Player player)
+    {
+        var jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        };
+
+        // Spielstatus für diesen Spieler zusammenstellen
+        var selfState = GameState.Players[player.UserId];
+
+        // Gegner finden
+        var opponent = GameState.Players.FirstOrDefault(p => p.Key != player.UserId);
+        PlayerState? opponentState = opponent.Value;
+
+        // Zusammengestellten Spielstatus senden
+        await SendMessage(player.Socket, new
+        {
+            action = "UPDATE",
+            gameState = new
+            {
+                players = new
+                {
+                    self = new
+                    {
+                        userId = selfState.UserId,
+                        grid = PopulateCurrentBlockIntoGrid(SerializeGrid(selfState.Grid), selfState.CurrentBlock),
+                        currentBlock = selfState.CurrentBlock,
+                        nextBlock = TransformBlockIntoGrid(selfState.NextBlock),
+                        linesCleared = selfState.LinesCleared,
+                        isGameOver = selfState.IsGameOver
+                    },
+                    opponent = opponentState != null ? new
+                    {
+                        userId = opponentState.UserId,
+                        grid = PopulateCurrentBlockIntoGrid(SerializeGrid(opponentState.Grid), opponentState.CurrentBlock),
+                        currentBlock = opponentState.CurrentBlock,
+                        linesCleared = opponentState.LinesCleared,
+                        isGameOver = opponentState.IsGameOver
+                    } : null
+                },
+                isGameActive = GameState.IsGameActive
+            }
+        }, jsonOptions);
+    }
+
+    private async Task SendGameStateToSpectator(Player spectator)
+    {
+        var jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        };
+
+        // Für den Spectator sind andere Properties interessant wie z.B. der Username
+        var gameStateMessage = new
+        {
+            action = "SPECTATE_UPDATE",
+            gameState = new
+            {
+                players = GameState.Players.Select(p => new
+                {
+                    userId = p.Key,
+                    grid = PopulateCurrentBlockIntoGrid(SerializeGrid(p.Value.Grid), p.Value.CurrentBlock),
+                    currentBlock = p.Value.CurrentBlock,
+                    linesCleared = p.Value.LinesCleared,
+                    isGameOver = p.Value.IsGameOver,
+                    username = GetUsername(p.Key)
+                }).ToList(),
+                isGameActive = GameState.IsGameActive
+            }
+        };
+
+        await SendMessage(spectator.Socket, gameStateMessage, jsonOptions);
+    }
+
+    private string GetUsername(int userId)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<SqlContext>();
+        var user = context.Users.FirstOrDefault(u => u.Id == userId);
+        return user!.Username;
     }
 }
