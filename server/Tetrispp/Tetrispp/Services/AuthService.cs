@@ -13,17 +13,20 @@ public class AuthService
 {
     private readonly SqlContext _context;
     private readonly IConfiguration _configuration;
+    private readonly ILogger<AuthService> _logger;
 
-    public AuthService(SqlContext context, IConfiguration configuration)
+    public AuthService(SqlContext context, IConfiguration configuration, ILogger<AuthService> logger)
     {
         _context = context;
         _configuration = configuration;
+        _logger = logger;
     }
 
     public async Task<AuthResult> RegisterAsync(string username, string password)
     {
         if (await _context.Users.AnyAsync(u => u.Username == username))
         {
+            _logger.LogWarning("Registration attempt with existing username: {Username}", username);
             return new AuthResult { Success = false, Message = "Username already exists" };
         }
 
@@ -37,6 +40,8 @@ public class AuthService
         await _context.SaveChangesAsync();
 
         var token = GenerateJwtToken(user);
+
+        _logger.LogInformation("New user registered: {Username}", username);
 
         return new AuthResult
         {
@@ -53,6 +58,7 @@ public class AuthService
 
         if (user == null || !VerifyPassword(password, user.PasswordHash))
         {
+            _logger.LogWarning("Failed login attempt for username: {Username}", username);
             return new AuthResult { Success = false, Message = "Invalid username or password" };
         }
 
@@ -60,6 +66,8 @@ public class AuthService
         await _context.SaveChangesAsync();
 
         var token = GenerateJwtToken(user);
+
+        _logger.LogInformation("User logged in: {Username}", username);
 
         return new AuthResult
         {
@@ -90,11 +98,11 @@ public class AuthService
 
         var tokenDescriptor = new SecurityTokenDescriptor
         {
-            Subject = new ClaimsIdentity(new[]
-            {
+            Subject = new ClaimsIdentity(
+            [
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.Username)
-            }),
+            ]),
             Expires = DateTime.UtcNow.AddDays(7),
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };
@@ -127,7 +135,7 @@ public class AuthService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Token validation error: {ex.Message}");
+            _logger.LogWarning(ex, "Token validation error");
             return null;
         }
     }

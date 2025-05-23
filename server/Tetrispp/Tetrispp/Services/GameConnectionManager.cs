@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using Tetrispp.Data;
 using Tetrispp.Models;
+using Tetrispp.Models.Db;
 
 namespace Tetrispp.Services;
 
@@ -14,10 +15,12 @@ public class GameConnectionManager
     private readonly ConcurrentDictionary<string, GameRoom> _rooms = new();
     private readonly ConcurrentDictionary<WebSocket, string> _connections = new();
     private readonly IServiceProvider _serviceProvider;
+    private readonly ILogger<GameConnectionManager> _logger;
 
-    public GameConnectionManager(IServiceProvider serviceProvider)
+    public GameConnectionManager(IServiceProvider serviceProvider, ILogger<GameConnectionManager> logger)
     {
         _serviceProvider = serviceProvider;
+        _logger = logger;
     }
 
     /// <summary>
@@ -33,12 +36,14 @@ public class GameConnectionManager
             var userClaims = authService.ValidateToken(token);
             if (userClaims == null)
             {
+                _logger.LogWarning("Player connection rejected because of invalid token");
                 await socket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Invalid token", CancellationToken.None);
                 return;
             }
 
             // extract user information von den claims
             int userId = int.Parse(userClaims.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            _logger.LogDebug("Player {UserId} connected via WebSocket", userId);
 
             var buffer = new byte[1024 * 4];
             WebSocketReceiveResult result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
@@ -55,6 +60,8 @@ public class GameConnectionManager
                     var player = new Player(socket, userId);
                     room.AddPlayer(player);
                     _connections.TryAdd(socket, room.RoomId);
+
+                    _logger.LogInformation("Player {UserId} joined room {RoomId}", userId, room.RoomId);
 
                     // Initialisierungsnachricht senden
                     var initMessage = JsonSerializer.Serialize(new
@@ -79,7 +86,7 @@ public class GameConnectionManager
             }
         } catch (Exception ex)
         {
-            Console.WriteLine($"Error handling player: {ex.Message}");
+            _logger.LogError(ex, "Error handling player connection");
         } finally
         {
             await CleanUpConnection(socket, true);
@@ -97,6 +104,7 @@ public class GameConnectionManager
             var userClaims = authService.ValidateToken(token);
             if (userClaims == null)
             {
+                _logger.LogWarning("Spectator connection rejected because of invalid token");
                 await socket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Invalid token", CancellationToken.None);
                 return;
             }
@@ -110,15 +118,18 @@ public class GameConnectionManager
                 room.AddSpectator(spectator);
                 _connections.TryAdd(socket, roomId);
 
+                _logger.LogInformation("Spectator {UserId} joined room {RoomId}", userId, roomId);
+
                 // Nachrichten-Loop für diesen Zuschauer
                 await HandleMessages(socket, room, spectator, false);
             } else
             {
+                _logger.LogWarning("Spectator {UserId} tried to join non-existent room {RoomId}", userId, roomId);
                 await socket.CloseAsync(WebSocketCloseStatus.InvalidPayloadData, "Room not found", CancellationToken.None);
             }
         } catch (Exception ex)
         {
-            Console.WriteLine($"Error handling spectator: {ex.Message}");
+            _logger.LogError(ex, "Error handling spectator");
         } finally
         {
             await CleanUpConnection(socket, false);
@@ -154,9 +165,20 @@ public class GameConnectionManager
                         CancellationToken.None);
                     break;
                 }
-            } catch (Exception ex)
+            } 
+            catch (WebSocketException ex) when (socket.State != WebSocketState.Open)
             {
-                Console.WriteLine($"Error in message handling: {ex.Message}");
+                _logger.LogDebug("WebSocket closed for user {UserId} - {State}", user.UserId, socket.State);
+                break;
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogDebug("Operation cancelled for user {UserId}", user.UserId);
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error in message handling for user {UserId}", user.UserId);
                 break;
             }
         }
@@ -176,7 +198,7 @@ public class GameConnectionManager
             }
         } catch (Exception ex)
         {
-            Console.WriteLine($"Error parsing message: {ex.Message}");
+            _logger.LogError(ex, "Error parsing message");
         }
     }
 

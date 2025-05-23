@@ -4,17 +4,16 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Tetrispp.Data;
 using Tetrispp.Services;
-using Tetrispp.Tetris.Randomizer;
 
 namespace Tetrispp.Models;
 
 public class GameRoom
 {
-    private readonly TetrisGameService _gameService;
+    private readonly ILogger<GameRoom> _logger;
     private readonly IServiceProvider _serviceProvider;
+    private readonly TetrisGameService _gameService;
     private Timer? _gameLoop;
     private readonly object _lockObject = new();
-    private bool _gameStarted = false;
 
     public string RoomId { get; } = Guid.NewGuid().ToString();
     public List<Player> Players { get; } = new();
@@ -29,21 +28,21 @@ public class GameRoom
     public GameRoom(IServiceProvider serviceProvider)
     {
         _serviceProvider = serviceProvider;
+        _logger = _serviceProvider.GetRequiredService<ILogger<GameRoom>>();
         using var scope = _serviceProvider.CreateScope();
-        _gameService = new TetrisGameService(scope.ServiceProvider.GetRequiredService<IRandomizer>());
+        _gameService = scope.ServiceProvider.GetRequiredService<TetrisGameService>();
     }
 
     /// <summary>
-    /// Startet das Spiel
+    /// Startet das Spiel und sendet eine Game_Start-Nachricht an den Client
     /// </summary>
     public void StartGame()
     {
         lock (_lockObject)
         {
-            if (_gameStarted)
+            if (GameState.IsGameActive)
                 return;
 
-            _gameStarted = true;
             GameState.IsGameActive = true;
 
             // Spieler benachrichtigen
@@ -61,7 +60,7 @@ public class GameRoom
     }
 
     /// <summary>
-    /// Beendet das Spiel, sendet eine Game-Over-Nachricht und speichert die Scores in der DB
+    /// Beendet das Spiel, sendet eine Game_Over-Nachricht und speichert die Scores in der DB
     /// </summary>
     private async Task EndGame(int winnerId)
     {
@@ -75,23 +74,14 @@ public class GameRoom
             winnerId = winnerId
         });
 
-        foreach (var spectator in Spectators)
-        {
-            await SendMessage(spectator.Socket, new
-            {
-                action = action,
-                winnerId = winnerId
-            });
-        }
-
-        using var scope = _serviceProvider.CreateScope();
-        var scoreService = scope.ServiceProvider.GetRequiredService<ScoreService>();
-
         var winnerEntry = GameState.Players.FirstOrDefault(p => p.Key == winnerId);
         var loserEntry = GameState.Players.FirstOrDefault(p => p.Key != winnerId);
 
         if (winnerEntry.Value == null || loserEntry.Value == null)
             return;
+
+        using var scope = _serviceProvider.CreateScope();
+        var scoreService = scope.ServiceProvider.GetRequiredService<ScoreService>();
 
         await scoreService.SavePlayerScoreAsync(
             winnerEntry.Key,
@@ -106,20 +96,40 @@ public class GameRoom
             false);
 
         // Spiel vorbei -> WebSocket-Verbindungen schliessen
-        await Task.Delay(1000);
+        await Task.Delay(1500);
+
+        var closeTasks = new List<Task>();
+
+        // Players
         foreach (var player in Players.ToList())
         {
-            try
+            closeTasks.Add(CloseSocketSafely(player.Socket, player.UserId, "Player"));
+        }
+
+        // Spectators auch
+        foreach (var spectator in Spectators.ToList())
+        {
+            closeTasks.Add(CloseSocketSafely(spectator.Socket, spectator.UserId, "Spectator"));
+        }
+
+        await Task.WhenAll(closeTasks);
+    }
+
+    private async Task CloseSocketSafely(WebSocket socket, int userId, string userType)
+    {
+        try
+        {
+            if (socket.State == WebSocketState.Open)
             {
-                await player.Socket.CloseAsync(
+                await socket.CloseAsync(
                     WebSocketCloseStatus.NormalClosure,
                     "Game ended",
                     CancellationToken.None);
+                _logger.LogDebug("{UserType} {UserId} socket closed", userType, userId);
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error closing WebSocket: {ex.Message}");
-            }
+        } catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "{UserType} {UserId} socket was already closed", userType, userId);
         }
     }
 
@@ -130,7 +140,6 @@ public class GameRoom
     {
         lock (_lockObject)
         {
-            _gameStarted = false;
             GameState.IsGameActive = false;
             // beendet den Timer
             _gameLoop?.Dispose();
@@ -150,13 +159,16 @@ public class GameRoom
             GameState.Players[player.UserId] = playerState;
 
             // Wenn zwei Spieler da sind, das Spiel starten
-            if (Players.Count == 2 && !_gameStarted)
+            if (Players.Count == 2 && !GameState.IsGameActive)
             {
                 StartGame();
             }
         }
     }
 
+    /// <summary>
+    /// Fügt einen Spectator zum Raum hinzu
+    /// </summary>
     public void AddSpectator(Player spectator)
     {
         Spectators.Add(spectator);
@@ -178,14 +190,26 @@ public class GameRoom
             // Spiel stoppen, wenn ein Spieler geht
             StopGame();
 
-            // Spieler benachrichtigen
-            foreach (var remainingPlayer in Players.ToList())
+            // Nur benachrichtigen wenn das Spiel noch läuft und es verbleibende Spieler gibt
+            if (Players.Any())
             {
-                await SendMessage(remainingPlayer.Socket, new
+                foreach (var remainingPlayer in Players.ToList())
                 {
-                    action = "PLAYER_DISCONNECTED",
-                    userId = player.UserId
-                });
+                    if (remainingPlayer?.Socket != null && remainingPlayer.Socket.State == WebSocketState.Open)
+                    {
+                        try
+                        {
+                            await SendMessage(remainingPlayer.Socket, new
+                            {
+                                action = "PLAYER_DISCONNECTED",
+                                userId = player.UserId
+                            });
+                        } catch (Exception ex)
+                        {
+                            _logger.LogDebug(ex, "Could not send disconnection message to player {UserId}", remainingPlayer.UserId);
+                        }
+                    }
+                }
             }
         }
     }
@@ -200,7 +224,7 @@ public class GameRoom
     }
 
     /// <summary>
-    /// Wird periodisch (_gameTickIntervalMs) aufgerufen, um das Spiel zu aktualisieren
+    /// Wird periodisch (_gameTickIntervalMs) ausgeführt, um das Spiel zu aktualisieren
     /// </summary>
     private async void GameTick(object? state)
     {
@@ -230,7 +254,7 @@ public class GameRoom
             }
         }
 
-        // Übertrage vollständige Zeilen von einem Spieler zum Gegner
+        // Übertrage vollständige Zeilen/Reihen von einem Spieler zum Gegner
         foreach (var playerEntry in GameState.Players)
         {
             var playerState = playerEntry.Value;
@@ -244,7 +268,7 @@ public class GameRoom
                     blockPlaced = true;
                 }
 
-                // Leere die CompletedLines, nachdem sie verarbeitet wurden
+                // Leere die CompletedLines, nachdem sie verarbeitet wurden (ansonsten würde der Gegner nach _gameTickIntervalMs wieder neue schwarze Linien in sein Spielfeld bekommen)
                 playerState.CompletedLines = null;
             }
         }
@@ -276,34 +300,20 @@ public class GameRoom
         switch (action.ActionType)
         {
             case ActionType.Move:
-                Console.WriteLine($"Player {player.UserId} moved block {action.Direction}");
+                _logger.LogInformation("Player {UserId} moved block {Direction}", player.UserId, action.Direction);
                 if (action.Direction != null)
                 {
                     stateChanged = _gameService.MoveBlock(playerState, action.Direction);
                 }
                 break;
             case ActionType.Rotate:
-                Console.WriteLine($"Player {player.UserId} rotated block");
+                _logger.LogInformation("Player {UserId} rotated block", player.UserId);
                 stateChanged = _gameService.RotateBlock(playerState);
                 break;
             case ActionType.Drop:
-                Console.WriteLine($"Player {player.UserId} dropped block");
+                _logger.LogInformation("Player {UserId} dropped block", player.UserId);
                 _gameService.DropBlock(playerState);
                 stateChanged = true;
-                break;
-            case ActionType.Start:
-                if (!_gameStarted)
-                {
-                    StartGame();
-                    stateChanged = true;
-                }
-                break;
-            case ActionType.Stop:
-                if (_gameStarted)
-                {
-                    StopGame();
-                    stateChanged = true;
-                }
                 break;
             default:
                 await SendMessage(player.Socket, new
@@ -314,10 +324,9 @@ public class GameRoom
                 break;
         }
 
-        // Wenn sich der Spielstatus geändert hat, an alle Spieler darüber informieren
+        // Wenn sich der Spielstatus geändert hat, an alle Spieler darüber informieren --> direktes Update, damit Spiel flüssig läuft
         if (stateChanged)
         {
-            Console.WriteLine($"Player {player.UserId} changed game state");
             await BroadcastGameState();
         }
     }
@@ -339,12 +348,13 @@ public class GameRoom
     }
 
     /// <summary>
-    /// Hilfsmethode zum Einfügen des aktuellen Blocks in das Grid
+    /// Hilfsmethode zum Einfügen des aktuellen Blocks in das Grid, damit der Client das komplette "Bild" anzeigen kann
+    /// -> navigiert durch die Matrix vom CurrentBlock und kopiert alle Werte != 0 in das aktuelle Grid
     /// </summary>
     /// <param name="grid"></param>
     /// <param name="currentBlock"></param>
     /// <returns></returns>
-    private List<List<int>> PopulateCurrentBlockIntoGrid(List<List<int>> grid, Tetromino currentBlock)
+    private static List<List<int>> PopulateCurrentBlockIntoGrid(List<List<int>> grid, Tetromino currentBlock)
     {
         if (currentBlock == null)
             return grid;
@@ -358,13 +368,13 @@ public class GameRoom
         {
             for (int x = 0; x < size; x++)
             {
-                // Check if the shape cell is filled (non-zero)
+                // nur die gefüllten Zellen interessieren uns
                 if (shape[y][x] != 0)
                 {
                     int gridX = originX + x;
                     int gridY = originY + y;
 
-                    // Ensure we are within grid bounds
+                    // noch innerhalb des Spioelfelds?
                     if (gridX >= 0 && gridX < grid[0].Count && gridY >= 0 && gridY < grid.Count)
                     {
                         grid[gridY][gridX] = shape[y][x];
@@ -407,6 +417,7 @@ public class GameRoom
     /// Hilfsmethode zum Serialisieren des 2D-Arrays (Grid) als Liste von Listen
     /// - wandelt das 2D-Array in eine Liste von Listen um
     /// - dieses Format kann problemlos zu JSON serialisiert werden -> kann von JavaScript-Clients einfach verarbeitet werden
+    /// int[,] gewöhnungsbedürftiger syntax aber entspricht einem 2D-Array
     /// </summary>
     private List<List<int>> SerializeGrid(int[,] grid)
     {
@@ -458,6 +469,11 @@ public class GameRoom
         {
             await SendMessage(player.Socket, message, jsonOptions);
         }
+
+        foreach (var spectator in Spectators)
+        {
+            await SendMessage(spectator.Socket, message, jsonOptions);
+        }
     }
 
     private async Task SendGameStateToPlayer(Player player)
@@ -486,16 +502,16 @@ public class GameRoom
                     self = new
                     {
                         userId = selfState.UserId,
-                        grid = PopulateCurrentBlockIntoGrid(SerializeGrid(selfState.Grid), selfState.CurrentBlock),
+                        grid = PopulateCurrentBlockIntoGrid(SerializeGrid(selfState.Grid), selfState.CurrentBlock!),
                         currentBlock = selfState.CurrentBlock,
-                        nextBlock = TransformBlockIntoGrid(selfState.NextBlock),
+                        nextBlock = TransformBlockIntoGrid(selfState.NextBlock!),
                         linesCleared = selfState.LinesCleared,
                         isGameOver = selfState.IsGameOver
                     },
                     opponent = opponentState != null ? new
                     {
                         userId = opponentState.UserId,
-                        grid = PopulateCurrentBlockIntoGrid(SerializeGrid(opponentState.Grid), opponentState.CurrentBlock),
+                        grid = PopulateCurrentBlockIntoGrid(SerializeGrid(opponentState.Grid), opponentState.CurrentBlock!),
                         currentBlock = opponentState.CurrentBlock,
                         linesCleared = opponentState.LinesCleared,
                         isGameOver = opponentState.IsGameOver

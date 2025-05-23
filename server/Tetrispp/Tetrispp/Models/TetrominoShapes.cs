@@ -5,6 +5,7 @@ public class TetrominoShapes
     // Nur die Grundformen (0° Rotation) speichern
     private static readonly Dictionary<TetrominoType, int[][]> BaseShapes = new()
     {
+        // 1en auf zweiter Zeile wegen Rotationszentrums (SRS) -> dadurch dreht es sich gleichmässiger
         [TetrominoType.I] = new[]
         {
             new[] {0,0,0,0},
@@ -49,7 +50,7 @@ public class TetrominoShapes
         }
     };
 
-    // Tetromino-Grössen (werden für Rotationsberechnungen benötigt)
+    // Tetromino-Grössen (werden für Rotationsberechnungen und platzieren des CurrentBlocks im Grid benötigt)
     public static readonly Dictionary<TetrominoType, int> ShapeSizes = new()
     {
         [TetrominoType.I] = 4, // I ist 4x4

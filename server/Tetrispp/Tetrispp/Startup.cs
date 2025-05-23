@@ -20,6 +20,9 @@ public class Startup
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton<GameConnectionManager>();
+        services.AddScoped<TetrisGameService>();
+        services.AddScoped<AuthService>();
+        services.AddScoped<ScoreService>();
         services.AddScoped<IRandomizer, PickOneRandomizer>();
 
         services.AddDbContext<SqlContext>(options =>
@@ -44,8 +47,6 @@ public class Startup
 
         services.AddAuthorization();
         services.AddControllers();
-        services.AddScoped<AuthService>();
-        services.AddScoped<ScoreService>();
     }
 
     public void Configure(IApplicationBuilder app)

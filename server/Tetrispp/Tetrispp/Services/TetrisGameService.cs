@@ -54,7 +54,6 @@ public class TetrisGameService
             state.CurrentBlock.Position.X + (direction == Direction.Left ? -1 : direction == Direction.Right ? 1 : 0),
             state.CurrentBlock.Position.Y + (direction == Direction.Down ? 1 : 0)
         );
-        Console.WriteLine($"Bewege Block {state.CurrentBlock.Type} von ({state.CurrentBlock.Position.X}, {state.CurrentBlock.Position.Y}) nach ({newPosition.X}, {newPosition.Y})");
 
         // Position überprüfen
         if (IsValidPosition(state, newPosition, state.CurrentBlock.Type, state.CurrentBlock.Rotation))

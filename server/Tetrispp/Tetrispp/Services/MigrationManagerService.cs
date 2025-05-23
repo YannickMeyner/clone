@@ -30,7 +30,7 @@ public class MigrationManagerService
             return Task.CompletedTask;
         } catch (Exception ex)
         {
-            logger.LogError($"error occured with exception: {ex.Message}");
+            logger.LogError(ex, "error occured with exception");
             return Task.CompletedTask;
         }
     }

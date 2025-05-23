@@ -11,10 +11,10 @@ export enum ActionType {
 }
 
 export enum Direction {
-  Left = "Left",    // Könnte auch "LEFT" sein, je nach Server-Erwartung
-  Right = "Right",  // Könnte auch "RIGHT" sein
-  Down = "Down",    // Könnte auch "DOWN" sein
-  Drop = "Drop"     // Könnte auch "DROP" sein
+  Left = "Left",
+  Right = "Right",
+  Down = "Down",
+  Drop = "Drop"
 }
 
 export interface GameAction {

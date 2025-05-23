@@ -39,6 +39,9 @@ export default function Home() {
           Welcome, {user?.username}!
         </div>
         <div className={styles.navButtons}>
+          <button onClick={() => router.push('/active-games')} className={styles.navButton}>
+            Active Games
+          </button>
           <button onClick={() => router.push('/highscores')} className={styles.navButton}>
             Highscores
           </button>

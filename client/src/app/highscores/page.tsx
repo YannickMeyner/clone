@@ -79,6 +79,9 @@ export default function HighscoresPage() {
           <button onClick={() => router.push('/')} className={styles.navButton}>
             Play Game
           </button>
+          <button onClick={() => router.push('/active-games')} className={styles.navButton}>
+            Active Games
+          </button>
           <button onClick={logout} className={styles.logoutButton}>
             Logout
           </button>
